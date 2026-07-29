@@ -29,6 +29,8 @@ import type { CoreRootStore } from "@/store/root.store";
 
 type TNotificationLoader = ENotificationLoader | undefined;
 type TNotificationQueryParamType = ENotificationQueryParamType;
+/** Which unread counter to move, for callers that must not depend on the open tab. */
+export type TUnreadNotificationsCountTarget = "all" | "mentions";
 
 export interface IWorkspaceNotificationStore {
   // observables
@@ -50,7 +52,11 @@ export interface IWorkspaceNotificationStore {
   // actions
   setCurrentNotificationTab: (tab: TNotificationTab) => void;
   setCurrentSelectedNotificationId: (notificationId: string | undefined) => void;
-  setUnreadNotificationsCount: (type: "increment" | "decrement", newCount?: number) => void;
+  setUnreadNotificationsCount: (
+    type: "increment" | "decrement",
+    newCount?: number,
+    target?: TUnreadNotificationsCountTarget
+  ) => void;
   getUnreadNotificationsCount: (workspaceSlug: string) => Promise<TUnreadNotificationsCount | undefined>;
   getNotifications: (
     workspaceSlug: string,
@@ -141,9 +147,9 @@ export class WorkspaceNotificationStore implements IWorkspaceNotificationStore {
           }
         } else {
           if (this.filters.snoozed) {
-            return n.snoozed_till ? true : false;
+            return Boolean(n.snoozed_till);
           } else if (this.filters.archived) {
-            return n.archived_at ? true : false;
+            return Boolean(n.archived_at);
           } else {
             return true;
           }
@@ -285,23 +291,33 @@ export class WorkspaceNotificationStore implements IWorkspaceNotificationStore {
    * @param { "increment" | "decrement" } type
    * @returns { void }
    */
-  setUnreadNotificationsCount = (type: "increment" | "decrement", newCount: number = 1): void => {
+  setUnreadNotificationsCount = (
+    type: "increment" | "decrement",
+    newCount: number = 1,
+    target?: TUnreadNotificationsCountTarget
+  ): void => {
     const validCount = Math.max(0, Math.abs(newCount));
+    const applyTo = (key: keyof TUnreadNotificationsCount) =>
+      update(
+        this.unreadNotificationsCount,
+        key,
+        (count: number) => +Math.max(0, type === "increment" ? count + validCount : count - validCount)
+      );
 
+    // The server keeps these two counts mutually exclusive: the "total" query excludes
+    // mentions. So a notification bumps exactly one of them, never both.
+    if (target) {
+      applyTo(target === "mentions" ? "mention_unread_notifications_count" : "total_unread_notifications_count");
+      return;
+    }
+
+    // Without an explicit target, follow the open tab. Existing callers rely on this.
     switch (this.currentNotificationTab) {
       case ENotificationTab.ALL:
-        update(
-          this.unreadNotificationsCount,
-          "total_unread_notifications_count",
-          (count: number) => +Math.max(0, type === "increment" ? count + validCount : count - validCount)
-        );
+        applyTo("total_unread_notifications_count");
         break;
       case ENotificationTab.MENTIONS:
-        update(
-          this.unreadNotificationsCount,
-          "mention_unread_notifications_count",
-          (count: number) => +Math.max(0, type === "increment" ? count + validCount : count - validCount)
-        );
+        applyTo("mention_unread_notifications_count");
         break;
       default:
         break;

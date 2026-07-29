@@ -37,6 +37,10 @@ export type TNotificationData = {
     verb: "created" | "updated" | "deleted";
     new_value: string | undefined;
     old_value: string | undefined;
+    /** Set on an "assignees" activity: the user who was just added. */
+    new_identifier: string | undefined;
+    /** Set on an "assignees" activity: the user who was just removed. */
+    old_identifier: string | undefined;
   };
 };
 
@@ -103,4 +107,15 @@ export type TNotificationLite = {
   notification_id: string | undefined;
   issue_id: string | undefined;
   is_inbox_issue: boolean | undefined;
+};
+
+/**
+ * A notification pushed over the live server's event stream.
+ * Mirrors the envelope built in plane/bgtasks/realtime_notification_task.py.
+ */
+export type TRealtimeNotificationEvent = {
+  receiver_id: string;
+  workspace_id: string;
+  kind: "mention" | "assigned";
+  notification: TNotification;
 };

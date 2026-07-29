@@ -7,6 +7,9 @@
 import type { Request, Response } from "express";
 import { Controller, Get } from "@plane/decorators";
 import { env } from "@/env";
+import { notificationRegistry } from "@/lib/notification-registry";
+import { isNotificationDeliveryEnabled } from "@/lib/notification-subscriber";
+import { redisManager } from "@/redis";
 
 @Controller("/health")
 export class HealthController {
@@ -16,6 +19,12 @@ export class HealthController {
       status: "OK",
       timestamp: new Date().toISOString(),
       version: env.APP_VERSION,
+      // Real-time notification delivery is silently disabled without Redis, so surface it.
+      // Redis can be connected while the subscribe itself failed, hence the second field.
+      redis: redisManager.isClientConnected() ? "connected" : "disabled",
+      notifications: isNotificationDeliveryEnabled() ? "enabled" : "disabled",
+      sse_connections: notificationRegistry.size(),
+      sse_users: notificationRegistry.userCount(),
     });
   }
 }

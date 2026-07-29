@@ -211,7 +211,8 @@ export const PromiseToast: Story = {
     const handlePromise = () => {
       const promise = new Promise<{ name?: string; error?: string }>((resolve, reject) => {
         setTimeout(() => {
-          Math.random() > 0.5 ? resolve({ name: "Success data" }) : reject({ error: "Failed" });
+          if (Math.random() > 0.5) resolve({ name: "Success data" });
+          else reject({ error: "Failed" });
         }, 2000);
       });
 
@@ -704,6 +705,101 @@ export const DesignTokens: Story = {
           </div>
         </div>
       </div>
+    );
+  },
+};
+
+export const Clickable: Story = {
+  render() {
+    return (
+      <>
+        <Toast theme="light" />
+        <div className="space-y-2">
+          <p className="text-12 text-secondary">
+            The title and message become a real button, so the toast is keyboard operable. The close button stays
+            independent.
+          </p>
+          <button
+            onClick={() =>
+              setToast({
+                type: TOAST_TYPE.INFO,
+                title: "William mentioned you in FIOS-342",
+                message: "Can you verify the survey logic?",
+                onClick: () => {
+                  const target = document.getElementById("clickable-toast-result");
+                  if (target) target.textContent = "Toast clicked — this is where navigation happens.";
+                },
+              })
+            }
+            className="rounded-sm bg-accent-primary px-4 py-2 text-13 text-on-color hover:bg-accent-primary/90"
+          >
+            Show Clickable Toast
+          </button>
+          <p id="clickable-toast-result" className="text-12 text-primary" />
+        </div>
+      </>
+    );
+  },
+};
+
+export const CustomTimeout: Story = {
+  render() {
+    return (
+      <>
+        <Toast theme="light" />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setToast({ type: TOAST_TYPE.INFO, title: "Gone in 2 seconds", timeout: 2000 })}
+            className="rounded-sm bg-layer-1 px-4 py-2 text-13 text-primary"
+          >
+            2s toast
+          </button>
+          <button
+            onClick={() => setToast({ type: TOAST_TYPE.INFO, title: "Gone in 10 seconds", timeout: 10000 })}
+            className="rounded-sm bg-layer-1 px-4 py-2 text-13 text-primary"
+          >
+            10s toast
+          </button>
+          <button
+            onClick={() => setToast({ type: TOAST_TYPE.WARNING, title: "Stays until dismissed", timeout: 0 })}
+            className="rounded-sm bg-layer-1 px-4 py-2 text-13 text-primary"
+          >
+            No auto-dismiss
+          </button>
+        </div>
+      </>
+    );
+  },
+};
+
+export const OverflowBadge: Story = {
+  render() {
+    return (
+      <>
+        <Toast theme="light" />
+        <div className="space-y-2">
+          <p className="text-12 text-secondary">
+            Fires 6 toasts at once, each with a 4s auto-dismiss. Three are visible; the newest shows a &quot;+3
+            more&quot; badge. A queued toast does not start its countdown until it is on screen, so none of them expire
+            unseen.
+          </p>
+          <button
+            onClick={() => {
+              for (let i = 1; i <= 6; i++) {
+                setToast({
+                  type: TOAST_TYPE.INFO,
+                  title: `Notification ${i}`,
+                  message: `Queued event number ${i}`,
+                  timeout: 4000,
+                });
+              }
+            }}
+            className="rounded-sm bg-accent-primary px-4 py-2 text-13 text-on-color hover:bg-accent-primary/90"
+          >
+            Fire 6 toasts
+          </button>
+        </div>
+      </>
     );
   },
 };

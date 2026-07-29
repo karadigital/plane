@@ -2186,6 +2186,15 @@ export default {
   notification: {
     label: "Inbox",
     page_label: "{workspace} - Inbox",
+    realtime: {
+      mentioned_you: "{actor} mentioned you",
+      assigned_you: "{actor} assigned a work item to you",
+      desktop_title: "Plane",
+      enable_browser_notifications: "Enable browser notifications",
+      browser_notifications_blocked: "Browser notifications are blocked in your browser settings",
+      turn_off: "Turn off notification popups",
+      turn_on: "Turn on notification popups",
+    },
     options: {
       mark_all_as_read: "Mark all as read",
       mark_read: "Mark as read",

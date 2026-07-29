@@ -21,6 +21,9 @@ import { CONTROLLERS } from "@/controllers";
 import { env } from "@/env";
 // hocuspocus server
 import { HocusPocusServerManager } from "@/hocuspocus";
+// notification streams
+import { notificationRegistry } from "@/lib/notification-registry";
+import { startNotificationSubscriber, stopNotificationSubscriber } from "@/lib/notification-subscriber";
 // redis
 import { redisManager } from "@/redis";
 
@@ -43,6 +46,7 @@ export class Server {
     try {
       await redisManager.initialize();
       logger.info("SERVER: Redis setup completed");
+      await startNotificationSubscriber();
       const manager = HocusPocusServerManager.getInstance();
       this.hocuspocusServer = await manager.initialize();
       logger.info("SERVER: HocusPocus setup completed");
@@ -58,7 +62,19 @@ export class Server {
     // Security middleware
     this.app.use(helmet());
     // Middleware for response compression
-    this.app.use(compression({ level: env.COMPRESSION_LEVEL, threshold: env.COMPRESSION_THRESHOLD }));
+    this.app.use(
+      compression({
+        level: env.COMPRESSION_LEVEL,
+        threshold: env.COMPRESSION_THRESHOLD,
+        // Streaming responses carry no Content-Length, so the size threshold never skips
+        // them and zlib would hold each frame in its buffer. Opt them out explicitly.
+        filter: (req, res) => {
+          const contentType = res.getHeader("Content-Type")?.toString() ?? "";
+          if (contentType.includes("text/event-stream")) return false;
+          return compression.filter(req, res);
+        },
+      })
+    );
     // Logging middleware
     this.app.use(loggerMiddleware);
     // Body parsing middleware
@@ -108,6 +124,13 @@ export class Server {
       this.hocuspocusServer.closeConnections();
       logger.info("SERVER: HocusPocus connections closed gracefully.");
     }
+
+    // `httpServer.close()` below never resolves while keep-alive sockets are open, so
+    // every event stream has to be ended first.
+    notificationRegistry.closeAll();
+    logger.info("SERVER: Notification streams closed gracefully.");
+
+    await stopNotificationSubscriber();
 
     await redisManager.disconnect();
     logger.info("SERVER: Redis connection closed gracefully.");

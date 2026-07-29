@@ -4,9 +4,10 @@
  * See the LICENSE file for details.
  */
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { observer } from "mobx-react";
-import { CheckCircle, Clock, MoreVertical } from "lucide-react";
+import { Bell, BellOff, CheckCircle, Clock, MonitorSmartphone, MoreVertical } from "lucide-react";
+import { useLocalStorage } from "@plane/hooks";
 import { useTranslation } from "@plane/i18n";
 // plane imports
 import { ArchiveIcon, CheckIcon } from "@plane/propel/icons";
@@ -14,6 +15,8 @@ import type { TNotificationFilter } from "@plane/types";
 import { PopoverMenu } from "@plane/ui";
 // hooks
 import { useWorkspaceNotifications } from "@/hooks/store/notifications";
+import { REALTIME_NOTIFICATIONS_ENABLED_KEY } from "@/hooks/use-notification-stream";
+import { getDesktopNotificationPermission, requestDesktopNotificationPermission } from "@/lib/desktop-notification";
 // local imports
 import { NotificationMenuOptionItem } from "./menu-item";
 import { IconButton } from "@plane/propel/icon-button";
@@ -32,6 +35,19 @@ export const NotificationHeaderMenuOption = observer(function NotificationHeader
   // hooks
   const { filters, updateFilters, updateBulkFilters } = useWorkspaceNotifications();
   const { t } = useTranslation();
+  const { storedValue: arePopupsEnabled, setValue: setPopupsEnabled } = useLocalStorage<boolean>(
+    REALTIME_NOTIFICATIONS_ENABLED_KEY,
+    true
+  );
+
+  // Per-device on/off, matching browser notification permission which is also per-device.
+  const popupsEnabled = arePopupsEnabled !== false;
+  // Held in state so granting permission re-renders the menu. `undefined` means the browser
+  // has no Notification API, or it has not been read yet.
+  const [desktopPermission, setDesktopPermission] = useState<NotificationPermission | undefined>(undefined);
+
+  // Read after mount: the API does not exist while the page is rendered on the server.
+  useEffect(() => setDesktopPermission(getDesktopNotificationPermission()), []);
 
   const handleFilterChange = (filterType: keyof TNotificationFilter, filterValue: boolean) =>
     updateFilters(filterType, filterValue);
@@ -74,7 +90,36 @@ export const NotificationHeaderMenuOption = observer(function NotificationHeader
           archived: false,
         }),
     },
+    {
+      key: "menu-realtime-popups",
+      type: "menu-item",
+      label: popupsEnabled ? t("notification.realtime.turn_off") : t("notification.realtime.turn_on"),
+      isActive: popupsEnabled,
+      prependIcon: popupsEnabled ? (
+        <BellOff className="h-3 w-3 flex-shrink-0" />
+      ) : (
+        <Bell className="h-3 w-3 flex-shrink-0" />
+      ),
+      onClick: () => setPopupsEnabled(!popupsEnabled),
+    },
   ];
+
+  // Permission can only be requested from a user gesture, so it lives behind this click.
+  if (desktopPermission === "default" || desktopPermission === "denied") {
+    popoverMenuOptions.push({
+      key: "menu-desktop-permission",
+      type: "menu-item",
+      label:
+        desktopPermission === "denied"
+          ? t("notification.realtime.browser_notifications_blocked")
+          : t("notification.realtime.enable_browser_notifications"),
+      prependIcon: <MonitorSmartphone className="h-3 w-3 flex-shrink-0" />,
+      onClick:
+        desktopPermission === "denied"
+          ? undefined
+          : () => void requestDesktopNotificationPermission().then(setDesktopPermission),
+    });
+  }
 
   return (
     <PopoverMenu

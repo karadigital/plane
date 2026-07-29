@@ -32,6 +32,14 @@ type SetToastProps =
       title: string;
       message?: string;
       actionItems?: React.ReactNode;
+      /**
+       * Auto-dismiss delay in ms for this toast. `0` keeps it until dismissed. Defaults to
+       * the provider's timeout. An explicit value is timed by this component, not by the
+       * toast library, so the countdown starts when the toast is really on screen.
+       */
+      timeout?: number;
+      /** Makes the title and message activatable. The close button and action items keep their own clicks. */
+      onClick?: () => void;
     };
 
 type PromiseToastCallback<ToastData> = (data: ToastData) => string;
@@ -49,17 +57,26 @@ type PromiseToastOptions<ToastData> = {
   error: PromiseToastData<ToastData>;
 };
 
+/** Matches the underlying toast provider's own default, kept explicit so the badge can rely on it. */
+export const DEFAULT_TOAST_LIMIT = 3;
+
 export type ToastProps = {
   theme: "light" | "dark" | "system";
+  /** How many toasts are visible at once. Extras stay queued and are counted in the "+N more" badge. */
+  limit?: number;
+  /** Default auto-dismiss delay in ms. `0` disables auto-dismiss. */
+  timeout?: number;
 };
 
 const toastManager = BaseToast.createToastManager();
 
 export function Toast(props: ToastProps) {
+  const { theme, limit = DEFAULT_TOAST_LIMIT, timeout } = props;
+
   return (
-    <BaseToast.Provider toastManager={toastManager}>
+    <BaseToast.Provider toastManager={toastManager} limit={limit} timeout={timeout}>
       <BaseToast.Portal>
-        <BaseToast.Viewport data-theme={props.theme}>
+        <BaseToast.Viewport data-theme={theme}>
           <ToastList />
         </BaseToast.Viewport>
       </BaseToast.Portal>
@@ -108,13 +125,65 @@ const TOAST_DATA = {
 
 function ToastList() {
   const { toasts } = BaseToast.useToastManager();
-  return toasts.map((toast) => <ToastRender key={toast.id} id={toast.id} toast={toast} />);
+  // Toasts past the limit are not dropped: they stay in the list flagged as `limited` and
+  // surface again as the ones in front close. Counting them gives the "+N more" total.
+  const overflowCount = toasts.filter((toast) => toast.limited && toast.transitionStatus !== "ending").length;
+
+  return toasts.map((toast, index) => (
+    <ToastRender key={toast.id} id={toast.id} toast={toast} overflowCount={index === 0 ? overflowCount : 0} />
+  ));
 }
 
-function ToastRender({ id, toast }: { id: React.Key; toast: BaseToast.Root.ToastObject }) {
+function ToastRender({
+  id,
+  toast,
+  overflowCount,
+}: {
+  id: React.Key;
+  toast: BaseToast.Root.ToastObject;
+  overflowCount: number;
+}) {
   const toastData = toast.data as SetToastProps;
   const type = toastData.type as TOAST_TYPE;
   const data = TOAST_DATA[type];
+  const onClick = toastData.type === TOAST_TYPE.LOADING ? undefined : toastData.onClick;
+  const timeout = toastData.type === TOAST_TYPE.LOADING ? 0 : (toastData.timeout ?? 0);
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  // The toast library schedules its dismiss timer in `add()` for every toast, including the
+  // ones queued behind the limit, so a hidden toast expires before anyone sees it. A toast
+  // with an explicit timeout opts out of that timer in `setToast` and is timed here, where
+  // `limited` says whether it is actually on screen.
+  React.useEffect(() => {
+    if (!timeout || toast.limited || isHovered || toast.transitionStatus === "ending") return;
+    // Leaving the toast restarts the full delay instead of resuming the remainder, and only
+    // the hovered toast pauses. Both are deliberate: the difference is not perceptible.
+    const timer = setTimeout(() => toastManager.close(toast.id), timeout);
+    return () => clearTimeout(timer);
+  }, [timeout, toast.limited, toast.transitionStatus, toast.id, isHovered]);
+
+  const title = (
+    <BaseToast.Title className="text-h6-medium text-primary">
+      {toastData.type === TOAST_TYPE.LOADING ? (toastData.title ?? "Loading...") : toastData.title}
+    </BaseToast.Title>
+  );
+
+  // Rendered bare unless there is overflow, so untouched call sites keep today's layout.
+  const titleRow =
+    overflowCount > 0 ? (
+      <div className="flex min-w-0 items-start gap-2">
+        <div className="min-w-0 flex-1">{title}</div>
+        <span className="mt-0.5 flex-shrink-0 rounded-full bg-layer-2 px-1.5 py-0.5 text-caption-sm-regular text-secondary">
+          +{overflowCount} more
+        </span>
+      </div>
+    ) : (
+      title
+    );
+
+  const description = toastData.type !== TOAST_TYPE.LOADING && toastData.message && (
+    <BaseToast.Description className="text-body-xs-regular text-tertiary">{toastData.message}</BaseToast.Description>
+  );
 
   return (
     <BaseToast.Root
@@ -162,6 +231,8 @@ function ToastRender({ id, toast }: { id: React.Key; toast: BaseToast.Root.Toast
         e.stopPropagation();
         e.preventDefault();
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <BaseToast.Close className="absolute top-3 right-3 cursor-pointer text-icon-secondary hover:text-icon-tertiary">
         <CloseIcon strokeWidth={1.5} width={16} height={16} />
@@ -177,13 +248,23 @@ function ToastRender({ id, toast }: { id: React.Key; toast: BaseToast.Root.Toast
           )}
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <BaseToast.Title className="text-h6-medium text-primary">
-            {toastData.type === TOAST_TYPE.LOADING ? (toastData.title ?? "Loading...") : toastData.title}
-          </BaseToast.Title>
-          {toastData.type !== TOAST_TYPE.LOADING && toastData.message && (
-            <BaseToast.Description className="text-body-xs-regular text-tertiary">
-              {toastData.message}
-            </BaseToast.Description>
+          {onClick ? (
+            // A real button rather than a click handler on the toast body: it is keyboard
+            // operable, announced correctly, and the toast library already ignores swipe
+            // gestures that start on a button. Action items stay outside so buttons never nest.
+            <button
+              type="button"
+              onClick={onClick}
+              className="flex w-full min-w-0 cursor-pointer flex-col gap-1 text-left"
+            >
+              {titleRow}
+              {description}
+            </button>
+          ) : (
+            <>
+              {titleRow}
+              {description}
+            </>
           )}
           {toastData.type !== TOAST_TYPE.LOADING && toastData.actionItems && (
             <div className="flex items-center gap-2">{toastData.actionItems}</div>
@@ -252,11 +333,16 @@ export const setToast = (props: SetToastProps) => {
   let toastId: string | undefined;
   if (props.type !== TOAST_TYPE.LOADING) {
     toastId = toastManager.add({
+      // `0` stops the library from scheduling its own timer: ToastRender owns the delay so
+      // it can start when the toast leaves the queue. `undefined` keeps the default timer.
+      timeout: props.timeout === undefined ? undefined : 0,
       data: {
         type: props.type,
         title: props.title,
         message: props.message,
         actionItems: props.actionItems,
+        onClick: props.onClick,
+        timeout: props.timeout,
       },
     });
   } else {
@@ -270,7 +356,14 @@ export const setToast = (props: SetToastProps) => {
   return toastId;
 };
 
-export const updateToast = (id: string, props: SetToastProps) => {
+/** Keeps the union intact while dropping a key from each member. */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+/**
+ * `timeout` is not accepted: the library's `update()` only merges the toast object, it
+ * never (re)schedules a dismissal, so the value would be silently ignored.
+ */
+export const updateToast = (id: string, props: DistributiveOmit<SetToastProps, "timeout">) => {
   toastManager.update(id, {
     data:
       props.type === TOAST_TYPE.LOADING
@@ -283,6 +376,7 @@ export const updateToast = (id: string, props: SetToastProps) => {
             title: props.title,
             message: props.message,
             actionItems: props.actionItems,
+            onClick: props.onClick,
           },
   });
 };
