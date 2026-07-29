@@ -45,6 +45,9 @@ x-mq-env: &mq-env # RabbitMQ Settings
 x-live-env: &live-env
   API_BASE_URL: ${API_BASE_URL:-http://api:8000}
   LIVE_SERVER_SECRET_KEY: ${LIVE_SERVER_SECRET_KEY:-2FiJk1U2aiVPEQtzLehYGlTSnTnrs7LW}
+  # The notification stream is a credentialed cross-origin request when web and live do
+  # not share an origin. Without this the browser drops the response.
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
 
 x-app-env: &app-env
   WEB_URL: ${WEB_URL:-http://localhost}

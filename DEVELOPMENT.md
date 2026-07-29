@@ -506,6 +506,26 @@ no time to write an error. So you see a stop with no reason.
 
 Fix: start fewer apps (see [section 10](#10-if-you-have-8-gb-ram)).
 
+### Realtime notifications do not show up
+
+A mention or a new assignment should show a popup while you work. If nothing appears:
+
+1. **Open `http://localhost:3000`, not `http://127.0.0.1:3000`.** They look the same but
+   the browser treats them as two different sites. Your login cookie is sent to
+   `localhost` only, so the notification stream gets a 401 and stays quiet.
+2. **The `live` app must be running.** Start it with
+   `pnpm turbo run dev --filter=live`.
+3. **Check `CORS_ALLOWED_ORIGINS` in `apps/live/.env`.** It must list the address of the
+   web app (`http://localhost:3000`). `./setup.sh` already puts it there.
+4. **Check the live server is connected to Redis:**
+
+   ```bash
+   curl http://localhost:3100/live/health
+   ```
+
+   You want `"redis":"connected"` and `"notifications":"enabled"`. `"disabled"` means the
+   push is off — the notification tray still works, only the popup is missing.
+
 ### `pnpm dev` fails after you pull new code
 
 Someone added a new library. Install it:
@@ -604,6 +624,7 @@ git merge upstream/master
 ```bash
 pnpm check      # check format, lint, and types
 pnpm fix        # fix format and lint automatically
+pnpm test       # run the unit tests (live, web, propel, codemods)
 ```
 
 A Git hook also checks your files when you commit. If it finds a problem, the commit
