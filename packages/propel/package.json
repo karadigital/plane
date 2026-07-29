@@ -55,6 +55,8 @@
     "check:lint": "oxlint --max-warnings=3605 .",
     "check:types": "tsc --noEmit",
     "check:format": "oxfmt --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "fix:lint": "oxlint --fix .",
     "fix:format": "oxfmt .",
     "clean": "rm -rf .turbo && rm -rf .next && rm -rf node_modules && rm -rf dist",
@@ -87,10 +89,14 @@
     "@storybook/addon-designs": "10.0.2",
     "@storybook/addon-docs": "9.1.10",
     "@storybook/react-vite": "9.1.10",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "jsdom": "^26.1.0",
     "storybook": "9.1.19",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^4.0.15"
   }
 }
