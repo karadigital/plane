@@ -347,16 +347,18 @@ class CycleViewSet(BaseViewSet):
         request_data = request.data
 
         if cycle.end_date is not None and cycle.end_date < timezone.now():
-            if "sort_order" in request_data:
-                # Can only change sort order for a completed cycle``
-                request_data = {"sort_order": request_data.get("sort_order", cycle.sort_order)}
+            # Completed cycles may only have their dates (to reopen/extend) or
+            # sort order changed. All other fields remain locked.
+            allowed_fields = {"start_date", "end_date", "sort_order"}
+            if request_data and set(request_data.keys()).issubset(allowed_fields):
+                request_data = {k: v for k, v in request_data.items() if k in allowed_fields}
             else:
                 return Response(
                     {"error": "The Cycle has already been completed so it cannot be edited"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        serializer = CycleWriteSerializer(cycle, data=request.data, partial=True, context={"project_id": project_id})
+        serializer = CycleWriteSerializer(cycle, data=request_data, partial=True, context={"project_id": project_id})
         if serializer.is_valid():
             serializer.save()
             cycle = queryset.values(
