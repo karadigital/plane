@@ -60,7 +60,7 @@ B=~/plane-backups/<timestamp>
 cd ~/plane-src/deployments/kara
 docker compose stop api worker beat-worker web space admin live
 
-docker exec -i plane-plane-db-1 sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < $B/plane-db.dump
+docker exec -i plane-plane-db-1 sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_restore -h /var/run/postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < $B/plane-db.dump
 docker run --rm -v plane_uploads:/data -v $B:/backup postgres:15.7-alpine \
   sh -c 'tar xzf /backup/plane-uploads.tar.gz -C /data'
 
