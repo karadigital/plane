@@ -1,0 +1,55 @@
+# Override for docker-compose.yml: build every Plane image from this repo's
+# source instead of pulling makeplane/* images from Docker Hub.
+#
+# Usage (see deploy.sh):
+#   docker compose -p plane-app -f docker-compose.yml -f docker-compose.build.yml \
+#     --env-file plane.env up -d --build
+
+x-backend-build: &backend-build
+  image: ${IMAGE_PREFIX:-kara}/plane-backend:${APP_RELEASE:-local}
+  build:
+    context: ../../../apps/api
+    dockerfile: Dockerfile.api
+  pull_policy: build
+
+services:
+  web:
+    image: ${IMAGE_PREFIX:-kara}/plane-frontend:${APP_RELEASE:-local}
+    build:
+      context: ../../../
+      dockerfile: apps/web/Dockerfile.web
+    pull_policy: build
+
+  space:
+    image: ${IMAGE_PREFIX:-kara}/plane-space:${APP_RELEASE:-local}
+    build:
+      context: ../../../
+      dockerfile: apps/space/Dockerfile.space
+    pull_policy: build
+
+  admin:
+    image: ${IMAGE_PREFIX:-kara}/plane-admin:${APP_RELEASE:-local}
+    build:
+      context: ../../../
+      dockerfile: apps/admin/Dockerfile.admin
+    pull_policy: build
+
+  live:
+    image: ${IMAGE_PREFIX:-kara}/plane-live:${APP_RELEASE:-local}
+    build:
+      context: ../../../
+      dockerfile: apps/live/Dockerfile.live
+    pull_policy: build
+
+  proxy:
+    image: ${IMAGE_PREFIX:-kara}/plane-proxy:${APP_RELEASE:-local}
+    build:
+      context: ../../../apps/proxy
+      dockerfile: Dockerfile.ce
+    pull_policy: build
+
+  # api, worker, beat-worker and migrator share one backend image
+  api: *backend-build
+  worker: *backend-build
+  beat-worker: *backend-build
+  migrator: *backend-build
