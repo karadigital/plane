@@ -31,7 +31,10 @@ fi
 
 # 1. Database: custom-format dump (compressed, restorable with pg_restore)
 echo "[1/4] Dumping database..."
-docker exec "$DB_CONTAINER" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' \
+# The container's PGHOST points at the plane-db service (TCP, password auth),
+# so connect over the local socket and pass the password explicitly.
+docker exec "$DB_CONTAINER" sh -c \
+    'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h /var/run/postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' \
     > "$BACKUP_DIR/plane-db.dump"
 
 # Fail if the dump is unreadable
