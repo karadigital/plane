@@ -5,7 +5,10 @@ Self-hosted Plane on the office server, built from this repo's source.
 - `docker-compose.yml` mirrors the server's original `~/plane/docker-compose.yml`
   (project name `plane`, published ports 3000-3003/8000/9000, `minio.local`
   extra host, no proxy service) but builds every Plane image from source.
-- `deploy.sh` pulls the latest commit, builds the images and restarts the stack.
+- `deploy.sh` pulls the latest commit, builds the images one at a time (pruning
+  the build cache in between to keep disk usage low) and restarts the stack.
+  It stops before touching the running stack if a build fails or Docker's disk
+  has less than `MIN_FREE_GB` (default 15) free.
 - `backup.sh` dumps the database, archives the uploads volume and saves the
   compose/.env/patches into `~/plane-backups/<timestamp>/`.
 - `.env` (not committed) holds the server secrets. `SECRET_KEY` and
