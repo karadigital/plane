@@ -80,6 +80,11 @@ from plane.db.models import (
 )
 from plane.settings.storage import S3Storage
 from plane.utils.path_validator import sanitize_filename
+from plane.utils.order_queryset import (
+    ACTIVITY_ORDER_BY_ALLOWLIST,
+    ISSUE_ORDER_BY_ALLOWLIST,
+    sanitize_order_by,
+)
 from plane.bgtasks.storage_metadata_task import get_asset_object_metadata
 from .base import BaseAPIView
 from plane.utils.host import base_host
@@ -309,6 +314,20 @@ class IssueListCreateAPIEndpoint(BaseAPIView):
         Supports filtering, ordering, and field selection through query parameters.
         """
 
+        unsupported_filters = [param for param in ("pql", "filters") if request.GET.get(param)]
+        if unsupported_filters:
+            return Response(
+                {
+                    "pql": (
+                        "PQL and structured filters are not supported on this Plane edition. "
+                        "Remove the pql/filters parameter and filter results client-side, or use "
+                        "a Plane edition that supports work item query filtering."
+                    ),
+                    "unsupported_parameters": unsupported_filters,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         external_id = request.GET.get("external_id")
         external_source = request.GET.get("external_source")
 
@@ -328,7 +347,14 @@ class IssueListCreateAPIEndpoint(BaseAPIView):
         priority_order = ["urgent", "high", "medium", "low", "none"]
         state_order = ["backlog", "unstarted", "started", "completed", "cancelled"]
 
-        order_by_param = request.GET.get("order_by", "-created_at")
+        # Reject any field not in the allowlist before it reaches .order_by().
+        # An unrecognised value is replaced with the safe default, preventing
+        # ORM order_by injection via relational traversal (GHSA-p885-6jpg-cr2p).
+        order_by_param = sanitize_order_by(
+            request.GET.get("order_by", "-created_at"),
+            ISSUE_ORDER_BY_ALLOWLIST,
+            default="-created_at",
+        )
 
         issue_queryset = (
             self.get_queryset()
@@ -478,6 +504,8 @@ class IssueListCreateAPIEndpoint(BaseAPIView):
                 project_id=str(project_id),
                 current_instance=None,
                 epoch=int(timezone.now().timestamp()),
+                notification=True,
+                origin=base_host(request=request, is_app=True),
             )
 
             # Send the model activity
@@ -637,6 +665,8 @@ class IssueDetailAPIEndpoint(BaseAPIView):
                         project_id=str(project_id),
                         current_instance=current_instance,
                         epoch=int(timezone.now().timestamp()),
+                        notification=True,
+                        origin=base_host(request=request, is_app=True),
                     )
                     # Send the model activity for webhook dispatch
                     model_activity.delay(
@@ -695,6 +725,8 @@ class IssueDetailAPIEndpoint(BaseAPIView):
                         project_id=str(project_id),
                         current_instance=None,
                         epoch=int(timezone.now().timestamp()),
+                        notification=True,
+                        origin=base_host(request=request, is_app=True),
                     )
                     # Send the model activity for webhook dispatch
                     model_activity.delay(
@@ -780,6 +812,8 @@ class IssueDetailAPIEndpoint(BaseAPIView):
                 project_id=str(project_id),
                 current_instance=current_instance,
                 epoch=int(timezone.now().timestamp()),
+                notification=True,
+                origin=base_host(request=request, is_app=True),
             )
             # Send the model activity for webhook dispatch
             model_activity.delay(
@@ -1273,10 +1307,13 @@ class IssueLinkDetailAPIEndpoint(BaseAPIView):
         issue_link = IssueLink.objects.get(workspace__slug=slug, project_id=project_id, issue_id=issue_id, pk=pk)
         requested_data = json.dumps(request.data, cls=DjangoJSONEncoder)
         current_instance = json.dumps(IssueLinkSerializer(issue_link).data, cls=DjangoJSONEncoder)
+        previous_url = issue_link.url
         serializer = IssueLinkSerializer(issue_link, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            crawl_work_item_link_title.delay(serializer.data.get("id"), serializer.data.get("url"))
+            updated_url = serializer.data.get("url")
+            if updated_url and updated_url != previous_url:
+                crawl_work_item_link_title.delay(serializer.data.get("id"), updated_url)
             issue_activity.delay(
                 type="link.activity.updated",
                 requested_data=requested_data,
@@ -1692,7 +1729,9 @@ class IssueActivityListAPIEndpoint(BaseAPIView):
             )
             .filter(project__archived_at__isnull=True)
             .select_related("actor", "workspace", "issue", "project")
-        ).order_by(request.GET.get("order_by", "created_at"))
+        ).order_by(
+            sanitize_order_by(request.GET.get("order_by", "created_at"), ACTIVITY_ORDER_BY_ALLOWLIST, "created_at")
+        )
 
         return self.paginate(
             request=request,
@@ -1749,7 +1788,9 @@ class IssueActivityDetailAPIEndpoint(BaseAPIView):
                 .filter(project__archived_at__isnull=True)
                 .select_related("actor", "workspace", "issue", "project")
             )
-            .order_by(request.GET.get("order_by", "created_at"))
+            .order_by(
+                sanitize_order_by(request.GET.get("order_by", "created_at"), ACTIVITY_ORDER_BY_ALLOWLIST, "created_at")
+            )
             .first()
         )
 
@@ -2481,6 +2522,15 @@ class IssueRelationListCreateAPIEndpoint(BaseAPIView):
 
         actual_relation = get_actual_relation(relation_type)
         is_reverse = relation_type in ["blocking", "start_after", "finish_after"]
+
+        # Scope to workspace to prevent cross-tenant IDOR
+        # Relations can cross projects so only workspace scope is enforced
+        issues = list(
+            Issue.issue_objects.filter(
+                workspace__slug=slug,
+                pk__in=issues,
+            ).values_list("id", flat=True)
+        )
 
         IssueRelation.objects.bulk_create(
             [

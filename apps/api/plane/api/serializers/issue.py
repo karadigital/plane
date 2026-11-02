@@ -69,7 +69,7 @@ class IssueSerializer(BaseSerializer):
 
     class Meta:
         model = Issue
-        read_only_fields = ["id", "workspace", "project", "updated_by", "updated_at"]
+        read_only_fields = ["id", "workspace", "project", "updated_by", "updated_at", "completed_at"]
         exclude = ["description_json", "description_stripped"]
 
     def validate(self, data):
@@ -105,18 +105,32 @@ class IssueSerializer(BaseSerializer):
 
         # Validate assignees are from project
         if data.get("assignees", []):
-            data["assignees"] = ProjectMember.objects.filter(
-                project_id=self.context.get("project_id"),
-                is_active=True,
-                role__gte=15,
-                member_id__in=data["assignees"],
-            ).values_list("member_id", flat=True)
+            valid_assignee_ids = set(
+                ProjectMember.objects.filter(
+                    project_id=self.context.get("project_id"),
+                    is_active=True,
+                    role__gte=15,
+                    member_id__in=data["assignees"],
+                ).values_list("member_id", flat=True)
+            )
+            invalid_assignee_ids = set(data["assignees"]) - valid_assignee_ids
+            if invalid_assignee_ids:
+                raise serializers.ValidationError(
+                    f"Assignees {list(invalid_assignee_ids)} are not active members of this project"
+                )
+            data["assignees"] = list(valid_assignee_ids)
 
         # Validate labels are from project
         if data.get("labels", []):
-            data["labels"] = Label.objects.filter(
-                project_id=self.context.get("project_id"), id__in=data["labels"]
-            ).values_list("id", flat=True)
+            valid_label_ids = set(
+                Label.objects.filter(
+                    project_id=self.context.get("project_id"), id__in=data["labels"]
+                ).values_list("id", flat=True)
+            )
+            invalid_label_ids = set(data["labels"]) - valid_label_ids
+            if invalid_label_ids:
+                raise serializers.ValidationError(f"Labels {list(invalid_label_ids)} do not belong to this project")
+            data["labels"] = list(valid_label_ids)
 
         # Check state is from the project only else raise validation error
         if (
@@ -745,14 +759,12 @@ class IssueCommentSerializer(BaseSerializer):
         exclude = ["comment_stripped", "comment_json"]
 
     def validate(self, data):
-        try:
-            if data.get("comment_html", None) is not None:
-                parsed = html.fromstring(data["comment_html"])
-                parsed_str = html.tostring(parsed, encoding="unicode")
-                data["comment_html"] = parsed_str
-
-        except Exception:
-            raise serializers.ValidationError("Invalid HTML passed")
+        if "comment_html" in data and data["comment_html"]:
+            is_valid, error_msg, sanitized_html = validate_html_content(data["comment_html"])
+            if not is_valid:
+                raise serializers.ValidationError({"comment_html": "HTML content is not valid"})
+            if sanitized_html is not None:
+                data["comment_html"] = sanitized_html
         return data
 
 
@@ -850,6 +862,7 @@ class IssueExpandSerializer(BaseSerializer):
             "updated_by",
             "created_at",
             "updated_at",
+            "completed_at",
         ]
 
 
