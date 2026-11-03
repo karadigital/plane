@@ -11,6 +11,7 @@ Self-hosted Plane on the office server, built from this repo's source.
   has less than `MIN_FREE_GB` (default 15) free.
 - `backup.sh` dumps the database, archives the uploads volume and saves the
   compose/.env/patches into `~/plane-backups/<timestamp>/`.
+- `migrate-db.sh` moves the database to another Postgres server (see below).
 - `.env` (not committed) holds the server secrets. `SECRET_KEY`,
   `LIVE_SERVER_SECRET_KEY` and `DATABASE_URL` must be set; compose refuses to
   start without them.
@@ -69,63 +70,50 @@ characters such as `@`, `:`, `/` or `#`.
    Allow the Plane server's IP in `pg_hba.conf` / the firewall, and raise
    `max_connections` if needed (the bundled container used 1000).
 
-2. On the Plane server, check connectivity and the server version. If it is
-   newer than 15, use a matching client image (e.g. `PG_IMAGE=postgres:16-alpine`)
-   in all commands below and for `backup.sh`:
-
-   ```bash
-   read -rs -p 'New DATABASE_URL: ' NEW_DB && export NEW_DB && echo
-   # e.g. postgresql://plane-db:<url-encoded-password>@10.148.0.13:5432/plane-db
-   docker run --rm --network plane_default -e NEW_DB postgres:15.7-alpine \
-     sh -c 'psql "$NEW_DB" -c "select version()"'
-   ```
-
-   `read -s` keeps the password out of the shell history, and `-e NEW_DB`
-   (passed by name) keeps it out of `ps`.
-
-3. Stop everything that writes to the database, then take the final dump of
-   the bundled database. Compose now requires `DATABASE_URL`, so if `.env`
-   does not have it yet, first add the current one:
-   `DATABASE_URL=postgresql://plane:plane@plane-db/plane`.
+2. On the Plane server, run `migrate-db.sh`. It asks for the new
+   `DATABASE_URL` (hidden input, never written to shell history or `ps`):
+   `postgresql://<user>:<url-encoded-password>@<host>:5432/<db>`. If the new
+   server is newer than Postgres 15, prefix every command with a matching
+   client image, e.g. `PG_IMAGE=postgres:16-alpine`.
 
    ```bash
    cd ~/plane-src/deployments/kara
-   docker compose stop api worker beat-worker web space admin live
-   DATABASE_URL=postgresql://plane:plane@plane-db/plane ./backup.sh
+   ./migrate-db.sh --check      # connectivity, versions, target empty, can create tables
+   ./migrate-db.sh --rehearse   # Plane keeps running: backup, restore, compare, empty again
    ```
 
-4. Restore that dump into the external database. `--no-owner --no-acl` makes
-   every object owned by `plane-db`:
+   The rehearsal prints how long the restore took, which is roughly the
+   downtime of the real move.
+
+3. During the downtime window:
 
    ```bash
-   B=~/plane-backups/<timestamp>
-   docker run --rm -i --network plane_default -e NEW_DB postgres:15.7-alpine \
-     sh -c 'pg_restore --no-owner --no-acl --exit-on-error -d "$NEW_DB"' < $B/plane-db.dump
+   ./migrate-db.sh              # type 'migrate' to confirm
    ```
 
-5. Point `.env` at the external database and recreate the containers. No
-   rebuild is needed, only the env changes:
+   It stops the Plane services (the old database keeps running), takes a final
+   `backup.sh`, restores it with `--no-owner --no-acl --exit-on-error`, checks
+   that every table has the same row count in both databases, saves `.env` as
+   `.env.before-db-move-<timestamp>`, switches `DATABASE_URL`, runs
+   `./deploy.sh --no-build`, and waits for the migrator to exit 0 and the API to
+   answer.
 
-   ```bash
-   DATABASE_URL=postgresql://plane-db:<url-encoded-password>@10.148.0.13:5432/plane-db
-   ```
+   The old database is never modified. If anything fails, the script puts the
+   previous `.env` back and restarts Plane on the old database. A failure
+   before the switch also empties the new database again; after the switch it
+   is left as is (Plane may have written to it) and the script says how to
+   empty it.
 
-   ```bash
-   ./deploy.sh --no-build
-   docker compose logs -f migrator api   # migrator should report no new migrations
-   ```
-
-   Log in and check that workspaces, projects and issues are all there.
-
-6. Stop the old container. Its `plane_pgdata` volume is kept for rollback:
+4. Log in and check workspaces, projects, issues and attachments. Then retire
+   the old container. Its `plane_pgdata` volume is kept for rollback:
 
    ```bash
    docker update --restart=no plane-plane-db-1   # don't come back after a reboot
    docker stop plane-plane-db-1
    ```
 
-Rollback: set `COMPOSE_PROFILES=local-db` and
-`DATABASE_URL=postgresql://plane:plane@plane-db/plane` in `.env`, then
+Rollback after a successful move: `docker start plane-plane-db-1` (if it was
+stopped), `cp -p .env.before-db-move-<timestamp> .env`, then
 `./deploy.sh --no-build`. Changes made after the switch only exist in the
 external database.
 
