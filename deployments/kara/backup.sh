@@ -6,7 +6,12 @@
 #
 # Env overrides:
 #   PLANE_DIR       old install dir whose config is also saved. Default: ~/plane
-#   DB_CONTAINER    Postgres container. Default: plane-plane-db-1
+#   ENV_FILE        env file holding DATABASE_URL. Default: ./.env next to this script
+#   DATABASE_URL    database to dump. Default: DATABASE_URL from ENV_FILE
+#   PG_IMAGE        image providing pg_dump; must be >= the server's major
+#                   version. Default: postgres:15.7-alpine
+#   DOCKER_NETWORK  network the dump runs on, so the local plane-db hostname
+#                   also resolves. Default: plane_default
 #   UPLOADS_VOLUME  MinIO data volume. Default: plane_uploads
 
 set -euo pipefail
@@ -14,7 +19,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_ROOT=${1:-$HOME/plane-backups}
 PLANE_DIR=${PLANE_DIR:-$HOME/plane}
-DB_CONTAINER=${DB_CONTAINER:-plane-plane-db-1}
+ENV_FILE=${ENV_FILE:-$SCRIPT_DIR/.env}
+PG_IMAGE=${PG_IMAGE:-postgres:15.7-alpine}
+DOCKER_NETWORK=${DOCKER_NETWORK:-plane_default}
 UPLOADS_VOLUME=${UPLOADS_VOLUME:-plane_uploads}
 
 TS=$(date +%Y%m%d-%H%M%S)
@@ -24,22 +31,28 @@ chmod 700 "$BACKUP_ROOT" "$BACKUP_DIR"
 
 echo "Backup dir: $BACKUP_DIR"
 
-if ! docker ps --format '{{.Names}}' | grep -qx "$DB_CONTAINER"; then
-    echo "Error: container $DB_CONTAINER is not running"
+if [ -z "${DATABASE_URL:-}" ] && [ -f "$ENV_FILE" ]; then
+    DATABASE_URL=$(grep -E '^DATABASE_URL=' "$ENV_FILE" | tail -n 1 | cut -d= -f2- | sed -e 's/^["'\'']//' -e 's/["'\'']$//')
+fi
+if [ -z "${DATABASE_URL:-}" ]; then
+    echo "Error: DATABASE_URL is not set (checked the environment and $ENV_FILE)"
     exit 1
 fi
 
+# Passed by name (-e DATABASE_URL) so the password never shows up in `ps`
+export DATABASE_URL
+
+pg() {
+    docker run --rm -i --network "$DOCKER_NETWORK" -e DATABASE_URL "$PG_IMAGE" "$@"
+}
+
 # 1. Database: custom-format dump (compressed, restorable with pg_restore)
 echo "[1/4] Dumping database..."
-# The container's PGHOST points at the plane-db service (TCP, password auth),
-# so connect over the local socket and pass the password explicitly.
-docker exec "$DB_CONTAINER" sh -c \
-    'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h /var/run/postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' \
-    > "$BACKUP_DIR/plane-db.dump"
+pg sh -c 'pg_dump -Fc -d "$DATABASE_URL"' > "$BACKUP_DIR/plane-db.dump"
 
 # Fail if the dump is unreadable
-docker exec -i "$DB_CONTAINER" pg_restore --list < "$BACKUP_DIR/plane-db.dump" > /dev/null
-TABLES=$(docker exec -i "$DB_CONTAINER" pg_restore --list < "$BACKUP_DIR/plane-db.dump" | grep -c "TABLE DATA" || true)
+TOC=$(pg pg_restore --list < "$BACKUP_DIR/plane-db.dump")
+TABLES=$(grep -c "TABLE DATA" <<< "$TOC" || true)
 echo "      OK: $(du -h "$BACKUP_DIR/plane-db.dump" | cut -f1), $TABLES tables"
 
 # 2. Uploaded files (MinIO volume)

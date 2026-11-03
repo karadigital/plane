@@ -6,8 +6,10 @@
 # running stack is left untouched.
 #
 # Usage:
-#   ./deploy.sh            # git pull, build, up
-#   ./deploy.sh --no-pull  # build and up from the current checkout
+#   ./deploy.sh             # git pull, build, up
+#   ./deploy.sh --no-pull   # build and up from the current checkout
+#   ./deploy.sh --no-build  # no pull, no build: recreate containers from the
+#                           # existing images (e.g. after changing .env)
 #
 # Env overrides:
 #   ENV_FILE        path to the env file. Default: ./.env next to this script
@@ -25,6 +27,18 @@ PRUNE_BUILD_CACHE=${PRUNE_BUILD_CACHE:-1}
 
 # api builds the backend image shared by worker, beat-worker and migrator
 BUILD_SERVICES=(api web space admin live)
+
+PULL=1
+BUILD=1
+case "${1:-}" in
+    "") ;;
+    --no-pull) PULL=0 ;;
+    --no-build) PULL=0 BUILD=0 ;;
+    *)
+        echo "Usage: $0 [--no-pull | --no-build]"
+        exit 1
+        ;;
+esac
 
 if command -v docker-compose &> /dev/null; then
     COMPOSE_CMD="docker-compose"
@@ -72,19 +86,23 @@ prune_build_cache() {
     fi
 }
 
-if [ "${1:-}" != "--no-pull" ]; then
+if [ "$PULL" = "1" ]; then
     echo "Pulling latest source..."
     git -C "$SCRIPT_DIR" pull --ff-only
 fi
 
 echo "Deploying commit $(git -C "$SCRIPT_DIR" rev-parse --short HEAD)"
 
-for service in "${BUILD_SERVICES[@]}"; do
-    check_disk
-    echo "Building $service..."
-    compose build "$service"
-    prune_build_cache
-done
+if [ "$BUILD" = "1" ]; then
+    for service in "${BUILD_SERVICES[@]}"; do
+        check_disk
+        echo "Building $service..."
+        compose build "$service"
+        prune_build_cache
+    done
+else
+    echo "Skipping build, using existing images"
+fi
 
 # --no-build: pull_policy "build" would otherwise rebuild every image again,
 # in parallel, on up.
