@@ -3,5 +3,26 @@
 # See the LICENSE file for details.
 
 from .client import SolidtimeClient, SolidtimeError
+from .service import (
+    find_member,
+    find_project,
+    find_task,
+    get_issue_time,
+    log_issue_time,
+    serialize_entry,
+    task_name,
+    task_prefix,
+)
 
-__all__ = ["SolidtimeClient", "SolidtimeError"]
+__all__ = [
+    "SolidtimeClient",
+    "SolidtimeError",
+    "find_member",
+    "find_project",
+    "find_task",
+    "get_issue_time",
+    "log_issue_time",
+    "serialize_entry",
+    "task_name",
+    "task_prefix",
+]
