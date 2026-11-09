@@ -266,6 +266,26 @@
       "click_to_downvote": "クリックして反対票を投じる",
       "click_to_view_upvotes": "クリックして賛成票を表示",
       "click_to_view_downvotes": "クリックして反対票を表示"
+    },
+    "solidtime": {
+      "label": "記録済み時間",
+      "log_time": "時間を記録",
+      "modal_title": "時間の記録",
+      "date": "日付",
+      "start_time": "開始時刻",
+      "hours": "時間",
+      "minutes": "分",
+      "description": "説明",
+      "description_placeholder": "どのような作業をしましたか？",
+      "submit": "Time に送信",
+      "success": "時間を記録しました",
+      "no_entries": "この作業項目にはまだ時間が記録されていません。",
+      "running": "計測中",
+      "errors": {
+        "future": "開始時刻を未来に設定することはできません",
+        "duration": "時間は 1 分から 24 時間の間で指定してください",
+        "generic": "時間を記録できませんでした。もう一度お試しください。"
+      }
     }
   },
   "sub_work_item": {

@@ -266,6 +266,26 @@
       "click_to_downvote": "點擊反對",
       "click_to_view_upvotes": "點擊查看贊成票",
       "click_to_view_downvotes": "點擊查看反對票"
+    },
+    "solidtime": {
+      "label": "已記錄時間",
+      "log_time": "記錄時間",
+      "modal_title": "時間記錄",
+      "date": "日期",
+      "start_time": "開始時間",
+      "hours": "小時",
+      "minutes": "分鐘",
+      "description": "描述",
+      "description_placeholder": "您做了哪些工作？",
+      "submit": "提交到 Time",
+      "success": "時間已記錄",
+      "no_entries": "此工作事項尚未記錄時間。",
+      "running": "進行中",
+      "errors": {
+        "future": "開始時間不能晚於目前時間",
+        "duration": "時長必須介於 1 分鐘到 24 小時之間",
+        "generic": "無法記錄時間。請再試一次。"
+      }
     }
   },
   "sub_work_item": {

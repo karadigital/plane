@@ -266,6 +266,26 @@
       "click_to_downvote": "Klikněte pro hlasování dolů",
       "click_to_view_upvotes": "Klikněte pro zobrazení hlasů nahoru",
       "click_to_view_downvotes": "Klikněte pro zobrazení hlasů dolů"
+    },
+    "solidtime": {
+      "label": "Zaznamenaný čas",
+      "log_time": "Zaznamenat čas",
+      "modal_title": "Sledování času",
+      "date": "Datum",
+      "start_time": "Čas začátku",
+      "hours": "Hodiny",
+      "minutes": "Minuty",
+      "description": "Popis",
+      "description_placeholder": "Na čem jste pracovali?",
+      "submit": "Odeslat do Time",
+      "success": "Čas zaznamenán",
+      "no_entries": "U této pracovní položky zatím není zaznamenán žádný čas.",
+      "running": "Běží",
+      "errors": {
+        "future": "Čas začátku nemůže být v budoucnosti",
+        "duration": "Doba trvání musí být mezi 1 minutou a 24 hodinami",
+        "generic": "Čas se nepodařilo zaznamenat. Zkuste to prosím znovu."
+      }
     }
   },
   "sub_work_item": {

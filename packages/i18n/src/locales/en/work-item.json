@@ -266,6 +266,26 @@
       "click_to_downvote": "Click to downvote",
       "click_to_view_upvotes": "Click to view upvotes",
       "click_to_view_downvotes": "Click to view downvotes"
+    },
+    "solidtime": {
+      "label": "Time tracked",
+      "log_time": "Log time",
+      "modal_title": "Time tracking",
+      "date": "Date",
+      "start_time": "Start time",
+      "hours": "Hours",
+      "minutes": "Minutes",
+      "description": "Description",
+      "description_placeholder": "What did you work on?",
+      "submit": "Submit to Time",
+      "success": "Time logged",
+      "no_entries": "No time logged on this work item yet.",
+      "running": "Running",
+      "errors": {
+        "future": "Start time can't be in the future",
+        "duration": "Duration must be between 1 minute and 24 hours",
+        "generic": "Couldn't log time. Please try again."
+      }
     }
   },
   "sub_work_item": {
