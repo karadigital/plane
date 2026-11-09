@@ -4,7 +4,7 @@
  * See the LICENSE file for details.
  */
 
-import { convertMinutesToHoursMinutesString } from "@plane/utils";
+import { convertMinutesToHoursMinutesString, renderFormattedDate, renderFormattedTime } from "@plane/utils";
 
 export const MAX_DURATION_MINUTES = 24 * 60;
 
@@ -22,6 +22,15 @@ export const getDefaultStart = (now: Date = new Date()): { date: string; time: s
     date: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
     time: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
   };
+};
+
+/**
+ * An entry's start ("2026-11-09T23:00:00Z") as local date and time, e.g. "Nov 10, 2026 06:00" in WIB.
+ * renderFormattedDate must get a Date: given a string it takes the UTC calendar date.
+ */
+export const formatEntryStart = (start: string): string => {
+  const date = new Date(start);
+  return `${renderFormattedDate(date) ?? ""} ${renderFormattedTime(date)}`.trim();
 };
 
 /** Local date + time inputs → ISO 8601 (UTC) string, or null when invalid. */

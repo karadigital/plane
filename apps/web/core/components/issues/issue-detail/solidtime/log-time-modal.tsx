@@ -12,11 +12,10 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TIssueSolidtimeTime } from "@plane/types";
 import { EModalPosition, EModalWidth, Input, ModalCore } from "@plane/ui";
-import { renderFormattedDate, renderFormattedTime } from "@plane/utils";
 // services
 import { IssueSolidtimeService } from "@/services/issue";
 // local
-import { MAX_DURATION_MINUTES, formatTrackedSeconds, getDefaultStart, toStartIso } from "./helpers";
+import { MAX_DURATION_MINUTES, formatEntryStart, formatTrackedSeconds, getDefaultStart, toStartIso } from "./helpers";
 
 const issueSolidtimeService = new IssueSolidtimeService();
 
@@ -184,9 +183,7 @@ export const IssueSolidtimeLogTimeModal = observer(function IssueSolidtimeLogTim
                 <li key={entry.id} className="flex items-start justify-between gap-3 py-2">
                   <div className="min-w-0">
                     <p className="text-body-xs-medium text-primary">{entry.member_name ?? "—"}</p>
-                    <p className="text-caption-sm-regular text-tertiary">
-                      {renderFormattedDate(entry.start)} {renderFormattedTime(entry.start)}
-                    </p>
+                    <p className="text-caption-sm-regular text-tertiary">{formatEntryStart(entry.start)}</p>
                     {entry.description && (
                       <p className="truncate text-caption-sm-regular text-secondary">{entry.description}</p>
                     )}
