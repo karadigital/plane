@@ -146,6 +146,27 @@ docker run --rm -v plane_uploads:/data -v $B:/backup postgres:15.7-alpine \
 ./deploy.sh --no-build
 ```
 
+## Time (solidtime) integration
+
+Work items have a "Time tracked" row that logs time to solidtime
+(https://time.shrwt.id) and lists the time already tracked (KARA-30). It stays
+hidden until these are set in `.env`, then `./deploy.sh --no-build` (or a full
+deploy) restarts the API with them:
+
+```
+SOLIDTIME_BASE_URL=https://time.shrwt.id
+SOLIDTIME_API_TOKEN=<API token of a solidtime owner/admin>
+SOLIDTIME_ORGANIZATION_ID=<organization UUID from solidtime URLs>
+```
+
+- The token must belong to an owner/admin: Plane creates entries on behalf of
+  other members (matched by email) and reads everyone's entries on a work item.
+- A Plane project maps to the solidtime project named after its identifier
+  (`KARA`), falling back to the project name (`Sandbox`). Tasks are named
+  `[KARA-30] <work item name>` and are created automatically when missing.
+- A Plane user whose email is not a solidtime member gets a clear error and
+  nothing is created.
+
 ## Kara-specific code changes
 
 Changes previously applied as bind-mounted patches now live in source:

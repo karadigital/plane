@@ -72,6 +72,9 @@ x-app-env: &app-env
   LIVE_SERVER_SECRET_KEY: ${LIVE_SERVER_SECRET_KEY:?LIVE_SERVER_SECRET_KEY must be set in .env}
   WEBHOOK_ALLOWED_IPS: ${WEBHOOK_ALLOWED_IPS:-}
   WEBHOOK_ALLOWED_HOSTS: ${WEBHOOK_ALLOWED_HOSTS:-}
+  SOLIDTIME_BASE_URL: ${SOLIDTIME_BASE_URL:-}
+  SOLIDTIME_API_TOKEN: ${SOLIDTIME_API_TOKEN:-}
+  SOLIDTIME_ORGANIZATION_ID: ${SOLIDTIME_ORGANIZATION_ID:-}
 
 # api, worker, beat-worker and migrator share one backend image
 x-backend-build: &backend-build
