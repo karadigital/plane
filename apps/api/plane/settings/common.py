@@ -357,6 +357,12 @@ UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY")
 # Github Access Token
 GITHUB_ACCESS_TOKEN = os.environ.get("GITHUB_ACCESS_TOKEN", False)
 
+# solidtime ("Time" app) integration for logging time from work items.
+# The token must belong to a solidtime owner/admin: it creates entries for other members.
+SOLIDTIME_BASE_URL = os.environ.get("SOLIDTIME_BASE_URL", "")
+SOLIDTIME_API_TOKEN = os.environ.get("SOLIDTIME_API_TOKEN", "")
+SOLIDTIME_ORGANIZATION_ID = os.environ.get("SOLIDTIME_ORGANIZATION_ID", "")
+
 # Analytics
 ANALYTICS_SECRET_KEY = os.environ.get("ANALYTICS_SECRET_KEY", False)
 ANALYTICS_BASE_API = os.environ.get("ANALYTICS_BASE_API", False)
