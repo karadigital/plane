@@ -96,116 +96,119 @@ export const IssueSolidtimeLogTimeModal = observer(function IssueSolidtimeLogTim
 
   return (
     <ModalCore isOpen={isOpen} handleClose={onClose} position={EModalPosition.TOP} width={EModalWidth.XL}>
-      <div className="space-y-5 p-5">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-h4-medium text-secondary">{t("issue.solidtime.modal_title")}</h3>
-          <span className="text-body-sm-medium text-primary">{formatTrackedSeconds(data.total_seconds)}</span>
-        </div>
+      {/* The modal is portaled outside the peek overview; without this, clicks inside it close the peek. */}
+      <div data-prevent-outside-click>
+        <div className="space-y-5 p-5">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-h4-medium text-secondary">{t("issue.solidtime.modal_title")}</h3>
+            <span className="text-body-sm-medium text-primary">{formatTrackedSeconds(data.total_seconds)}</span>
+          </div>
 
-        {!disabled && (
-          <form id="solidtime-log-time" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="solidtime-date" className={labelClass}>
-                  {t("issue.solidtime.date")}
-                </label>
-                <Controller
-                  control={control}
-                  name="date"
-                  render={({ field }) => <Input id="solidtime-date" type="date" className={fieldClass} {...field} />}
-                />
-              </div>
-              <div>
-                <label htmlFor="solidtime-time" className={labelClass}>
-                  {t("issue.solidtime.start_time")}
-                </label>
-                <Controller
-                  control={control}
-                  name="time"
-                  render={({ field }) => <Input id="solidtime-time" type="time" className={fieldClass} {...field} />}
-                />
-              </div>
-              <div>
-                <label htmlFor="solidtime-hours" className={labelClass}>
-                  {t("issue.solidtime.hours")}
-                </label>
-                <Controller
-                  control={control}
-                  name="hours"
-                  render={({ field }) => (
-                    <Input id="solidtime-hours" type="number" min={0} max={24} className={fieldClass} {...field} />
-                  )}
-                />
-              </div>
-              <div>
-                <label htmlFor="solidtime-minutes" className={labelClass}>
-                  {t("issue.solidtime.minutes")}
-                </label>
-                <Controller
-                  control={control}
-                  name="minutes"
-                  render={({ field }) => (
-                    <Input id="solidtime-minutes" type="number" min={0} max={59} className={fieldClass} {...field} />
-                  )}
-                />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="solidtime-description" className={labelClass}>
-                {t("issue.solidtime.description")}
-                <span className="ml-1 text-caption-xs-regular text-tertiary">{t("common.optional")}</span>
-              </label>
-              <Controller
-                control={control}
-                name="description"
-                render={({ field }) => (
-                  <Input
-                    id="solidtime-description"
-                    type="text"
-                    maxLength={5000}
-                    placeholder={t("issue.solidtime.description_placeholder")}
-                    className={fieldClass}
-                    {...field}
+          {!disabled && (
+            <form id="solidtime-log-time" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="solidtime-date" className={labelClass}>
+                    {t("issue.solidtime.date")}
+                  </label>
+                  <Controller
+                    control={control}
+                    name="date"
+                    render={({ field }) => <Input id="solidtime-date" type="date" className={fieldClass} {...field} />}
                   />
-                )}
-              />
-            </div>
-            {formError && <p className="text-caption-sm-regular text-danger-primary">{formError}</p>}
-          </form>
-        )}
-
-        <div className="space-y-2">
-          {data.entries.length === 0 ? (
-            <p className="text-body-xs-regular text-tertiary">{t("issue.solidtime.no_entries")}</p>
-          ) : (
-            <ul className="max-h-60 divide-y divide-subtle-1 overflow-y-auto">
-              {data.entries.map((entry) => (
-                <li key={entry.id} className="flex items-start justify-between gap-3 py-2">
-                  <div className="min-w-0">
-                    <p className="text-body-xs-medium text-primary">{entry.member_name ?? "—"}</p>
-                    <p className="text-caption-sm-regular text-tertiary">{formatEntryStart(entry.start)}</p>
-                    {entry.description && (
-                      <p className="truncate text-caption-sm-regular text-secondary">{entry.description}</p>
+                </div>
+                <div>
+                  <label htmlFor="solidtime-time" className={labelClass}>
+                    {t("issue.solidtime.start_time")}
+                  </label>
+                  <Controller
+                    control={control}
+                    name="time"
+                    render={({ field }) => <Input id="solidtime-time" type="time" className={fieldClass} {...field} />}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="solidtime-hours" className={labelClass}>
+                    {t("issue.solidtime.hours")}
+                  </label>
+                  <Controller
+                    control={control}
+                    name="hours"
+                    render={({ field }) => (
+                      <Input id="solidtime-hours" type="number" min={0} max={24} className={fieldClass} {...field} />
                     )}
-                  </div>
-                  <span className="shrink-0 text-body-xs-medium text-secondary">
-                    {entry.is_running ? t("issue.solidtime.running") : formatTrackedSeconds(entry.duration)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+                  />
+                </div>
+                <div>
+                  <label htmlFor="solidtime-minutes" className={labelClass}>
+                    {t("issue.solidtime.minutes")}
+                  </label>
+                  <Controller
+                    control={control}
+                    name="minutes"
+                    render={({ field }) => (
+                      <Input id="solidtime-minutes" type="number" min={0} max={59} className={fieldClass} {...field} />
+                    )}
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="solidtime-description" className={labelClass}>
+                  {t("issue.solidtime.description")}
+                  <span className="ml-1 text-caption-xs-regular text-tertiary">{t("common.optional")}</span>
+                </label>
+                <Controller
+                  control={control}
+                  name="description"
+                  render={({ field }) => (
+                    <Input
+                      id="solidtime-description"
+                      type="text"
+                      maxLength={5000}
+                      placeholder={t("issue.solidtime.description_placeholder")}
+                      className={fieldClass}
+                      {...field}
+                    />
+                  )}
+                />
+              </div>
+              {formError && <p className="text-caption-sm-regular text-danger-primary">{formError}</p>}
+            </form>
+          )}
+
+          <div className="space-y-2">
+            {data.entries.length === 0 ? (
+              <p className="text-body-xs-regular text-tertiary">{t("issue.solidtime.no_entries")}</p>
+            ) : (
+              <ul className="max-h-60 divide-y divide-subtle-1 overflow-y-auto">
+                {data.entries.map((entry) => (
+                  <li key={entry.id} className="flex items-start justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-body-xs-medium text-primary">{entry.member_name ?? "—"}</p>
+                      <p className="text-caption-sm-regular text-tertiary">{formatEntryStart(entry.start)}</p>
+                      {entry.description && (
+                        <p className="truncate text-caption-sm-regular text-secondary">{entry.description}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-body-xs-medium text-secondary">
+                      {entry.is_running ? t("issue.solidtime.running") : formatTrackedSeconds(entry.duration)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t-[0.5px] border-subtle px-5 py-4">
+          <Button variant="secondary" size="lg" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          {!disabled && (
+            <Button variant="primary" size="lg" type="submit" form="solidtime-log-time" loading={isSubmitting}>
+              {t("issue.solidtime.submit")}
+            </Button>
           )}
         </div>
-      </div>
-      <div className="flex items-center justify-end gap-2 border-t-[0.5px] border-subtle px-5 py-4">
-        <Button variant="secondary" size="lg" onClick={onClose}>
-          {t("common.cancel")}
-        </Button>
-        {!disabled && (
-          <Button variant="primary" size="lg" type="submit" form="solidtime-log-time" loading={isSubmitting}>
-            {t("issue.solidtime.submit")}
-          </Button>
-        )}
       </div>
     </ModalCore>
   );
