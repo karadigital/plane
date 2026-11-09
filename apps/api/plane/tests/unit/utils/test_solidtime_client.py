@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 import requests
+from django.core.cache import cache
 
 from plane.utils.solidtime import SolidtimeClient, SolidtimeError
 
@@ -28,8 +29,29 @@ def _client(*responses):
     return client, session
 
 
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    cache.clear()
+    yield
+    cache.clear()
+
+
 @pytest.mark.unit
 class TestSolidtimeClient:
+    def test_members_and_projects_are_cached_per_organization(self):
+        page = {"data": [{"id": "x"}], "meta": {"current_page": 1, "last_page": 1}}
+        client, session = _client(_response(body=page), _response(body=page), _response(body=page))
+
+        assert client.list_projects() == [{"id": "x"}]
+        assert client.list_projects() == [{"id": "x"}]
+        client.list_members()
+        client.list_members()
+        assert session.request.call_count == 2
+
+        other_org = SolidtimeClient("https://time.example", "tok", "org-2", session=session)
+        other_org.list_projects()
+        assert session.request.call_count == 3
+
     def test_from_settings_returns_none_when_any_setting_blank(self, settings):
         settings.SOLIDTIME_BASE_URL = "https://time.example"
         settings.SOLIDTIME_API_TOKEN = ""
@@ -121,8 +143,13 @@ class TestSolidtimeClient:
 
     @pytest.mark.parametrize(
         "outcome",
-        [requests.Timeout("timed out"), _response(401), _response(503)],
-        ids=["timeout", "401", "503"],
+        [
+            requests.Timeout("timed out"),
+            _response(401),
+            _response(429, {"message": "Too Many Attempts."}),
+            _response(503),
+        ],
+        ids=["timeout", "401", "429", "503"],
     )
     def test_request_errors_raise_unavailable(self, outcome):
         client, _ = _client(outcome)

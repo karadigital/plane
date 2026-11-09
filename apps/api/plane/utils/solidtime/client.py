@@ -12,12 +12,17 @@ import requests
 
 # Django imports
 from django.conf import settings
+from django.core.cache import cache
 
 # Module imports
 from plane.utils.exception_logger import log_exception
 
 SOLIDTIME_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 TIME_ENTRIES_LIMIT = 500
+# Members and projects change rarely; caching them keeps Plane well inside
+# solidtime's per-user API rate limit, which every Plane user shares through
+# the one admin token.
+LOOKUP_CACHE_SECONDS = 60
 
 
 class SolidtimeError(Exception):
@@ -75,7 +80,7 @@ class SolidtimeClient:
             log_exception(e, warning=True)
             raise SolidtimeError("unavailable", "Could not reach the Time app. Please try again later.") from e
 
-        if response.status_code in (401, 403) or response.status_code >= 500:
+        if response.status_code in (401, 403, 429) or response.status_code >= 500:
             log_exception(
                 Exception(f"solidtime {method} {path} returned HTTP {response.status_code}"),
                 warning=True,
@@ -104,11 +109,19 @@ class SolidtimeClient:
                 return rows
             page += 1
 
+    def _cached(self, name: str, fetch) -> list[dict]:
+        key = f"solidtime:{self.organization_id}:{name}"
+        rows = cache.get(key)
+        if rows is None:
+            rows = fetch()
+            cache.set(key, rows, LOOKUP_CACHE_SECONDS)
+        return rows
+
     def list_members(self) -> list[dict]:
-        return self._list_all_pages("/members")
+        return self._cached("members", lambda: self._list_all_pages("/members"))
 
     def list_projects(self) -> list[dict]:
-        return self._list_all_pages("/projects")
+        return self._cached("projects", lambda: self._list_all_pages("/projects"))
 
     def list_tasks(self, project_id: str) -> list[dict]:
         return self._list_all_pages("/tasks", {"project_id": project_id, "done": "all"})
