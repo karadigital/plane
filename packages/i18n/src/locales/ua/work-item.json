@@ -273,6 +273,7 @@
       "modal_title": "Облік часу",
       "date": "Дата",
       "start_time": "Час початку",
+      "end_time": "Час завершення",
       "hours": "Години",
       "minutes": "Хвилини",
       "description": "Опис",

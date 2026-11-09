@@ -273,6 +273,7 @@
       "modal_title": "Zeiterfassung",
       "date": "Datum",
       "start_time": "Startzeit",
+      "end_time": "Endzeit",
       "hours": "Stunden",
       "minutes": "Minuten",
       "description": "Beschreibung",

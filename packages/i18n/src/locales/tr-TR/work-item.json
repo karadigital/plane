@@ -273,6 +273,7 @@
       "modal_title": "Süre takibi",
       "date": "Tarih",
       "start_time": "Başlangıç saati",
+      "end_time": "Bitiş saati",
       "hours": "Saat",
       "minutes": "Dakika",
       "description": "Açıklama",

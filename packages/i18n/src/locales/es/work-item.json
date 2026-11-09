@@ -273,6 +273,7 @@
       "modal_title": "Registro de tiempo",
       "date": "Fecha",
       "start_time": "Hora de inicio",
+      "end_time": "Hora de finalización",
       "hours": "Horas",
       "minutes": "Minutos",
       "description": "Descripción",

@@ -273,6 +273,7 @@
       "modal_title": "Theo dõi thời gian",
       "date": "Ngày",
       "start_time": "Giờ bắt đầu",
+      "end_time": "Giờ kết thúc",
       "hours": "Giờ",
       "minutes": "Phút",
       "description": "Mô tả",

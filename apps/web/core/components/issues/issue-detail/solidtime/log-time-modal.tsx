@@ -15,13 +15,22 @@ import { EModalPosition, EModalWidth, Input, ModalCore } from "@plane/ui";
 // services
 import { IssueSolidtimeService } from "@/services/issue";
 // local
-import { MAX_DURATION_MINUTES, formatEntryStart, formatTrackedSeconds, getDefaultStart, toStartIso } from "./helpers";
+import {
+  MAX_DURATION_MINUTES,
+  addMinutesToTime,
+  formatEntryStart,
+  formatTrackedSeconds,
+  getDefaultStart,
+  minutesBetweenTimes,
+  toStartIso,
+} from "./helpers";
 
 const issueSolidtimeService = new IssueSolidtimeService();
 
 type TLogTimeForm = {
   date: string;
   time: string;
+  endTime: string;
   hours: string;
   minutes: string;
   description: string;
@@ -38,12 +47,20 @@ type Props = {
   onLogged: () => void;
 };
 
-const getDefaultValues = (): TLogTimeForm => ({
-  ...getDefaultStart(),
-  hours: "1",
-  minutes: "0",
-  description: "",
-});
+const DEFAULT_DURATION_MINUTES = 60;
+
+const getDefaultValues = (): TLogTimeForm => {
+  const start = getDefaultStart();
+  return {
+    ...start,
+    endTime: addMinutesToTime(start.time, DEFAULT_DURATION_MINUTES) ?? "",
+    hours: String(DEFAULT_DURATION_MINUTES / 60),
+    minutes: "0",
+    description: "",
+  };
+};
+
+const toDurationMinutes = (hours: string, minutes: string) => (Number(hours) || 0) * 60 + (Number(minutes) || 0);
 
 export const IssueSolidtimeLogTimeModal = observer(function IssueSolidtimeLogTimeModal(props: Props) {
   const { isOpen, onClose, workspaceSlug, projectId, issueId, data, disabled, onLogged } = props;
@@ -53,6 +70,8 @@ export const IssueSolidtimeLogTimeModal = observer(function IssueSolidtimeLogTim
     control,
     handleSubmit,
     reset,
+    getValues,
+    setValue,
     formState: { isSubmitting },
   } = useForm<TLogTimeForm>({ defaultValues: getDefaultValues() });
 
@@ -63,8 +82,24 @@ export const IssueSolidtimeLogTimeModal = observer(function IssueSolidtimeLogTim
     }
   }, [isOpen, reset]);
 
+  // Start time, end time and duration stay in sync: editing the end time sets the duration,
+  // editing the start time or the duration moves the end time.
+  const syncEndTime = () => {
+    const { time, hours, minutes } = getValues();
+    const endTime = addMinutesToTime(time, toDurationMinutes(hours, minutes));
+    if (endTime !== null) setValue("endTime", endTime);
+  };
+
+  const syncDuration = () => {
+    const { time, endTime } = getValues();
+    const duration = minutesBetweenTimes(time, endTime);
+    if (duration === null) return;
+    setValue("hours", String(Math.floor(duration / 60)));
+    setValue("minutes", String(duration % 60));
+  };
+
   const onSubmit = async (form: TLogTimeForm) => {
-    const durationMinutes = (Number(form.hours) || 0) * 60 + (Number(form.minutes) || 0);
+    const durationMinutes = toDurationMinutes(form.hours, form.minutes);
     if (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > MAX_DURATION_MINUTES) {
       setFormError(t("issue.solidtime.errors.duration"));
       return;
@@ -106,7 +141,7 @@ export const IssueSolidtimeLogTimeModal = observer(function IssueSolidtimeLogTim
 
           {!disabled && (
             <form id="solidtime-log-time" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label htmlFor="solidtime-date" className={labelClass}>
                     {t("issue.solidtime.date")}
@@ -124,9 +159,43 @@ export const IssueSolidtimeLogTimeModal = observer(function IssueSolidtimeLogTim
                   <Controller
                     control={control}
                     name="time"
-                    render={({ field }) => <Input id="solidtime-time" type="time" className={fieldClass} {...field} />}
+                    render={({ field }) => (
+                      <Input
+                        id="solidtime-time"
+                        type="time"
+                        className={fieldClass}
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          syncEndTime();
+                        }}
+                      />
+                    )}
                   />
                 </div>
+                <div>
+                  <label htmlFor="solidtime-end-time" className={labelClass}>
+                    {t("issue.solidtime.end_time")}
+                  </label>
+                  <Controller
+                    control={control}
+                    name="endTime"
+                    render={({ field }) => (
+                      <Input
+                        id="solidtime-end-time"
+                        type="time"
+                        className={fieldClass}
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          syncDuration();
+                        }}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="solidtime-hours" className={labelClass}>
                     {t("issue.solidtime.hours")}
@@ -135,7 +204,18 @@ export const IssueSolidtimeLogTimeModal = observer(function IssueSolidtimeLogTim
                     control={control}
                     name="hours"
                     render={({ field }) => (
-                      <Input id="solidtime-hours" type="number" min={0} max={24} className={fieldClass} {...field} />
+                      <Input
+                        id="solidtime-hours"
+                        type="number"
+                        min={0}
+                        max={24}
+                        className={fieldClass}
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          syncEndTime();
+                        }}
+                      />
                     )}
                   />
                 </div>
@@ -147,7 +227,18 @@ export const IssueSolidtimeLogTimeModal = observer(function IssueSolidtimeLogTim
                     control={control}
                     name="minutes"
                     render={({ field }) => (
-                      <Input id="solidtime-minutes" type="number" min={0} max={59} className={fieldClass} {...field} />
+                      <Input
+                        id="solidtime-minutes"
+                        type="number"
+                        min={0}
+                        max={59}
+                        className={fieldClass}
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          syncEndTime();
+                        }}
+                      />
                     )}
                   />
                 </div>

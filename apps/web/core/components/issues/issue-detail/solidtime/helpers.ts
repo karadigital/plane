@@ -24,6 +24,32 @@ export const getDefaultStart = (now: Date = new Date()): { date: string; time: s
   };
 };
 
+const MINUTES_PER_DAY = 24 * 60;
+
+const parseTime = (time: string): number | null => {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours < 24 && minutes < 60 ? hours * 60 + minutes : null;
+};
+
+/** "HH:mm" plus minutes, wrapping past midnight; null for an invalid time. */
+export const addMinutesToTime = (time: string, minutes: number): string | null => {
+  const start = parseTime(time);
+  if (start === null) return null;
+  const total = (((start + minutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+};
+
+/** Minutes from start to end; an end before the start is on the next day. Null for an invalid time. */
+export const minutesBetweenTimes = (start: string, end: string): number | null => {
+  const from = parseTime(start);
+  const to = parseTime(end);
+  if (from === null || to === null) return null;
+  return (to - from + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+};
+
 /**
  * An entry's start ("2026-11-09T23:00:00Z") as local date and time, e.g. "Nov 10, 2026 06:00" in WIB.
  * renderFormattedDate must get a Date: given a string it takes the UTC calendar date.

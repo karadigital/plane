@@ -273,6 +273,7 @@
       "modal_title": "Sledovanie času",
       "date": "Dátum",
       "start_time": "Čas začiatku",
+      "end_time": "Čas konca",
       "hours": "Hodiny",
       "minutes": "Minúty",
       "description": "Popis",

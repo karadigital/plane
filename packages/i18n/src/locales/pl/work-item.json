@@ -273,6 +273,7 @@
       "modal_title": "Śledzenie czasu",
       "date": "Data",
       "start_time": "Godzina rozpoczęcia",
+      "end_time": "Godzina zakończenia",
       "hours": "Godziny",
       "minutes": "Minuty",
       "description": "Opis",

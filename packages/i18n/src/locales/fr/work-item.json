@@ -273,6 +273,7 @@
       "modal_title": "Suivi du temps",
       "date": "Date",
       "start_time": "Heure de début",
+      "end_time": "Heure de fin",
       "hours": "Heures",
       "minutes": "Minutes",
       "description": "Description",

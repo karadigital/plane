@@ -273,6 +273,7 @@
       "modal_title": "時間記錄",
       "date": "日期",
       "start_time": "開始時間",
+      "end_time": "結束時間",
       "hours": "小時",
       "minutes": "分鐘",
       "description": "描述",

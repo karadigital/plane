@@ -273,6 +273,7 @@
       "modal_title": "時間の記録",
       "date": "日付",
       "start_time": "開始時刻",
+      "end_time": "終了時刻",
       "hours": "時間",
       "minutes": "分",
       "description": "説明",

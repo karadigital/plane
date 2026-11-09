@@ -273,6 +273,7 @@
       "modal_title": "Учёт времени",
       "date": "Дата",
       "start_time": "Время начала",
+      "end_time": "Время окончания",
       "hours": "Часы",
       "minutes": "Минуты",
       "description": "Описание",

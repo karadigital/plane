@@ -273,6 +273,7 @@
       "modal_title": "Controle de tempo",
       "date": "Data",
       "start_time": "Hora de início",
+      "end_time": "Hora de término",
       "hours": "Horas",
       "minutes": "Minutos",
       "description": "Descrição",

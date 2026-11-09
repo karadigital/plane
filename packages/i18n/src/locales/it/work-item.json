@@ -273,6 +273,7 @@
       "modal_title": "Monitoraggio del tempo",
       "date": "Data",
       "start_time": "Ora di inizio",
+      "end_time": "Ora di fine",
       "hours": "Ore",
       "minutes": "Minuti",
       "description": "Descrizione",
