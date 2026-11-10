@@ -61,8 +61,12 @@ def find_project(projects: list[dict], project) -> dict | None:
 
 
 def find_task(tasks: list[dict], issue) -> dict | None:
+    """The task for this work item: one already named exactly right wins over other
+    ``[IDENT-N]`` duplicates (solidtime only enforces unique full names)."""
     prefix = task_prefix(issue)
-    return next((t for t in tasks if (t.get("name") or "").startswith(prefix)), None)
+    matches = [t for t in tasks if (t.get("name") or "").startswith(prefix)]
+    wanted = task_name(issue)
+    return next((t for t in matches if t.get("name") == wanted), matches[0] if matches else None)
 
 
 def serialize_entry(entry: dict, member_names_by_user_id: dict[str, str]) -> dict:

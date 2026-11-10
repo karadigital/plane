@@ -213,3 +213,13 @@ class TestLogIssueTime:
 
         assert exc_info.value.code == "invalid_request"
         client.create_time_entry.assert_not_called()
+
+
+@pytest.mark.unit
+class TestDuplicatePrefixes:
+    def test_find_task_prefers_exact_name_among_duplicates(self):
+        stale = {"id": "old", "name": "[KARA-30] Add"}
+        exact = {"id": "new", "name": "[KARA-30] Enable submit time in Plane"}
+
+        assert find_task([stale, exact], _issue()) == exact
+        assert find_task([stale], _issue()) == stale

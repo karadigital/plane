@@ -81,12 +81,12 @@ def _other_prefixes(tasks: list[dict], identifier: str) -> dict[str, int]:
     return counts
 
 
-def _tasks_by_prefix(tasks: list[dict]) -> dict[str, dict]:
-    by_prefix: dict[str, dict] = {}
+def _tasks_by_prefix(tasks: list[dict]) -> dict[str, list[dict]]:
+    by_prefix: dict[str, list[dict]] = {}
     for task in tasks:
         match = TASK_PREFIX_PATTERN.match(task.get("name") or "")
         if match:
-            by_prefix.setdefault(match.group(1), task)
+            by_prefix.setdefault(match.group(1), []).append(task)
     return by_prefix
 
 
@@ -110,7 +110,7 @@ def reconcile_project(
             return stats
         project = client.create_project(plane_project.identifier, client_id=_default_client_id())
         stats["project"] = "created"
-        tasks_by_prefix: dict[str, dict] = {}
+        tasks_by_prefix: dict[str, list[dict]] = {}
     else:
         tasks = client.list_tasks(project["id"])
         tasks_by_prefix = _tasks_by_prefix(tasks)
@@ -131,7 +131,8 @@ def reconcile_project(
             sleep(pause_seconds)
 
     for issue in issues:
-        task = tasks_by_prefix.get(task_prefix(issue))
+        # Same rule as find_task: an exact-name duplicate wins over the first [IDENT-N] match.
+        task = find_task(tasks_by_prefix.get(task_prefix(issue), []), issue)
         wanted = task_name(issue)
         if task is None:
             write(lambda issue=issue: create_task_or_reuse(client, project, issue), "created")

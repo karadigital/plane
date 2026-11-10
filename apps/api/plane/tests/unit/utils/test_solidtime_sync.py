@@ -310,3 +310,20 @@ class TestRenameFixes:
 
         sync_settings.SOLIDTIME_SYNC_WORKSPACE_SLUG = ""
         assert get_sync_client(require_enabled=False) is None
+
+
+@pytest.mark.unit
+class TestDuplicatePrefixTasks:
+    def test_reconcile_treats_exact_duplicate_as_unchanged(self, sync_settings):
+        client = _client(tasks=[_task("old", "[KARA-9] Add"), _task("new", "[KARA-9] Catch up")])
+
+        stats = reconcile_project(client, _plane_project(), [_issue(9, "Catch up")])
+
+        assert stats == {"project": "existing", "created": 0, "renamed": 0, "unchanged": 1, "errors": 0}
+        client.update_task.assert_not_called()
+
+    def test_sync_issue_task_treats_exact_duplicate_as_unchanged(self, sync_settings):
+        client = _client(tasks=[_task("old", "[KARA-9] Add"), _task("new", "[KARA-9] Catch up")])
+
+        assert sync_issue_task(client, _issue(9, "Catch up")) == "unchanged"
+        client.update_task.assert_not_called()
