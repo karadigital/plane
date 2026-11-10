@@ -102,7 +102,8 @@ class IssueManager(SoftDeletionManager):
 
 
 class Issue(ChangeTrackerMixin, ProjectBaseModel):
-    TRACKED_FIELDS = ["state_id"]
+    # name/project_id/sequence_id/is_draft drive the solidtime task sync (KARA-220)
+    TRACKED_FIELDS = ["state_id", "name", "project_id", "sequence_id", "is_draft"]
 
     PRIORITY_CHOICES = (
         ("urgent", "Urgent"),
