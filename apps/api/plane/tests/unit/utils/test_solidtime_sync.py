@@ -235,3 +235,30 @@ class TestRenameProjectIdentifier:
         stats = rename_project_identifier(client, _plane_project("KARX", "KARX"), "KARA")
 
         assert stats == {"project_renamed": True, "tasks_renamed": 1, "errors": 1}
+
+
+@pytest.mark.unit
+class TestLegacyPrefixes:
+    def test_identifier_rename_dry_run_makes_no_writes(self, sync_settings):
+        client = _client(tasks=[_task("t1", "[KARA-1] A"), _task("t2", "[KARA-2] B")])
+
+        stats = rename_project_identifier(client, _plane_project("KARX", "KARX"), "KARA", dry_run=True)
+
+        assert stats == {"project_renamed": True, "tasks_renamed": 2, "errors": 0}
+        client.update_project.assert_not_called()
+        client.update_task.assert_not_called()
+
+    def test_reconcile_reports_other_prefixes(self, sync_settings):
+        client = _client(
+            tasks=[
+                _task("s1", "[SOPI-1] A"),
+                _task("s2", "[SOPI-2] B"),
+                _task("k1", "[KARA-1] A"),
+                _task("x", "No prefix at all"),
+            ]
+        )
+
+        stats = reconcile_project(client, _plane_project(), [_issue(1, "A")], dry_run=True)
+
+        assert stats["other_prefixes"] == {"SOPI": 2}
+        assert stats["unchanged"] == 1

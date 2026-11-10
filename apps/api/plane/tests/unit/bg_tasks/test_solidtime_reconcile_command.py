@@ -46,7 +46,7 @@ class TestSolidtimeReconcileCommand:
 
         output = _run("--project", "KARA", "--dry-run", "--pause", "0")
 
-        reconcile.assert_called_once_with(project_identifier="KARA", dry_run=True, pause_seconds=0.0)
+        reconcile.assert_called_once_with(project_identifier="KARA", dry_run=True, pause_seconds=0.0, rename_from=None)
         assert output.splitlines()[0] == "DRY RUN: no changes will be written"
 
     def test_command_defaults(self, configured, mocker):
@@ -54,10 +54,55 @@ class TestSolidtimeReconcileCommand:
 
         _run()
 
-        reconcile.assert_called_once_with(project_identifier=None, dry_run=False, pause_seconds=0.3)
+        reconcile.assert_called_once_with(project_identifier=None, dry_run=False, pause_seconds=0.3, rename_from=None)
 
     def test_command_fails_when_not_configured(self, mocker):
         mocker.patch(f"{COMMAND}.get_sync_client", return_value=None)
 
         with pytest.raises(CommandError, match="solidtime sync is not enabled"):
             _run()
+
+
+@pytest.mark.unit
+class TestSolidtimeReconcileLegacyPrefix:
+    def test_command_warns_about_other_prefixes(self, configured, mocker):
+        mocker.patch(
+            f"{COMMAND}.reconcile_solidtime",
+            return_value={
+                "ECOM": {
+                    "project": "existing",
+                    "created": 258,
+                    "renamed": 0,
+                    "unchanged": 0,
+                    "errors": 0,
+                    "other_prefixes": {"SOPI": 299},
+                }
+            },
+        )
+
+        output = _run("--dry-run")
+
+        assert (
+            "  ! ECOM: 299 task(s) use another prefix (SOPI=299). If the identifier was changed, "
+            "run: solidtime_reconcile --project ECOM --rename-from SOPI"
+        ) in output
+
+    def test_command_rename_from(self, configured, mocker):
+        reconcile = mocker.patch(
+            f"{COMMAND}.reconcile_solidtime",
+            return_value={
+                "ECOM": {"renamed_from": {"SOPI": {"project_renamed": False, "tasks_renamed": 297, "errors": 2}}}
+            },
+        )
+
+        output = _run("--project", "ECOM", "--rename-from", "sopi", "--dry-run")
+
+        reconcile.assert_called_once_with(
+            project_identifier="ECOM", dry_run=True, pause_seconds=0.3, rename_from="SOPI"
+        )
+        assert "ECOM: renamed from SOPI: project_renamed=False tasks_renamed=297 errors=2" in output
+        assert output.strip().splitlines()[-1] == "Total: created=0 renamed=0 unchanged=0 errors=2"
+
+    def test_command_rename_from_requires_project(self, configured):
+        with pytest.raises(CommandError, match="--rename-from needs --project"):
+            _run("--rename-from", "SOPI")

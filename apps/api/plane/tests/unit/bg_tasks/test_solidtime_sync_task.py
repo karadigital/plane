@@ -190,3 +190,33 @@ class TestReconcile:
         entry = app.conf.beat_schedule["solidtime-reconcile-daily"]
         assert entry["task"] == "plane.bgtasks.solidtime_sync_task.reconcile_solidtime"
         assert entry["schedule"] == crontab(hour=20, minute=0)
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestReconcileRenameFrom:
+    def test_rename_from_runs_before_reconcile(self, scoped, project, mocker):
+        rename_stats = {"project_renamed": False, "tasks_renamed": 3, "errors": 0}
+        reconcile_stats = {"project": "existing", "created": 0, "renamed": 0, "unchanged": 3, "errors": 0}
+        rename = mocker.patch.object(tasks, "rename_project_identifier", return_value=rename_stats)
+        mocker.patch.object(tasks, "reconcile_project", return_value=reconcile_stats)
+
+        result = reconcile_solidtime(project_identifier="SP", rename_from="OLD", pause_seconds=0)
+
+        rename.assert_called_once_with(scoped, project, "OLD", dry_run=False)
+        assert result == {"SP": {**reconcile_stats, "renamed_from": {"OLD": rename_stats}}}
+
+    def test_rename_from_dry_run_skips_reconcile(self, scoped, project, mocker):
+        rename_stats = {"project_renamed": False, "tasks_renamed": 3, "errors": 0}
+        rename = mocker.patch.object(tasks, "rename_project_identifier", return_value=rename_stats)
+        reconcile = mocker.patch.object(tasks, "reconcile_project")
+
+        result = reconcile_solidtime(project_identifier="SP", rename_from="OLD", dry_run=True)
+
+        rename.assert_called_once_with(scoped, project, "OLD", dry_run=True)
+        reconcile.assert_not_called()
+        assert result == {"SP": {"renamed_from": {"OLD": rename_stats}}}
+
+    def test_rename_from_requires_project(self, scoped):
+        with pytest.raises(ValueError):
+            reconcile_solidtime(rename_from="OLD")

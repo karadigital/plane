@@ -60,6 +60,19 @@ def sync_issue_task(client: SolidtimeClient, issue) -> str:
     return "unchanged"
 
 
+TASK_IDENTIFIER_PATTERN = re.compile(r"^\[([A-Za-z0-9]+)-\d+\]")
+
+
+def _other_prefixes(tasks: list[dict], identifier: str) -> dict[str, int]:
+    """Count tasks whose ``[IDENT-N]`` prefix belongs to another identifier (e.g. a renamed project)."""
+    counts: dict[str, int] = {}
+    for task in tasks:
+        match = TASK_IDENTIFIER_PATTERN.match(task.get("name") or "")
+        if match and match.group(1) != identifier:
+            counts[match.group(1)] = counts.get(match.group(1), 0) + 1
+    return counts
+
+
 def _tasks_by_prefix(tasks: list[dict]) -> dict[str, dict]:
     by_prefix: dict[str, dict] = {}
     for task in tasks:
@@ -91,7 +104,11 @@ def reconcile_project(
         stats["project"] = "created"
         tasks_by_prefix: dict[str, dict] = {}
     else:
-        tasks_by_prefix = _tasks_by_prefix(client.list_tasks(project["id"]))
+        tasks = client.list_tasks(project["id"])
+        tasks_by_prefix = _tasks_by_prefix(tasks)
+        other_prefixes = _other_prefixes(tasks, plane_project.identifier)
+        if other_prefixes:
+            stats["other_prefixes"] = other_prefixes
 
     def write(action: Callable[[], object], counter: str) -> None:
         if dry_run:
@@ -117,16 +134,26 @@ def reconcile_project(
     return stats
 
 
-def rename_project_identifier(client: SolidtimeClient, plane_project, old_identifier: str) -> dict:
-    """After ``OLD`` → ``NEW``: rename the ``OLD`` solidtime project and every ``[OLD-N]`` task."""
+def rename_project_identifier(
+    client: SolidtimeClient, plane_project, old_identifier: str, dry_run: bool = False
+) -> dict:
+    """After ``OLD`` → ``NEW``: rename the ``OLD`` solidtime project and every ``[OLD-N]`` task.
+
+    Also used at cutover for identifiers changed before the sync existed (ECOM was SOPI).
+    With ``dry_run`` it only counts what it would rename.
+    """
     stats = {"project_renamed": False, "tasks_renamed": 0, "errors": 0}
     projects = client.list_projects()
     project = find_project(projects, plane_project)
     if project is None:
         old_project = next((p for p in projects if (p.get("name") or "").strip() == old_identifier), None)
         if old_project is not None:
-            project = client.update_project(old_project["id"], name=plane_project.identifier)
             stats["project_renamed"] = True
+            project = (
+                old_project if dry_run else client.update_project(old_project["id"], name=plane_project.identifier)
+            )
+        elif dry_run:
+            return stats
         else:
             project = ensure_project(client, plane_project)
 
@@ -134,6 +161,9 @@ def rename_project_identifier(client: SolidtimeClient, plane_project, old_identi
     for task in client.list_tasks(project["id"]):
         match = old_prefix.match(task.get("name") or "")
         if not match:
+            continue
+        if dry_run:
+            stats["tasks_renamed"] += 1
             continue
         new_name = f"[{plane_project.identifier}-{match.group(1)}]{match.group(2)}"[:TASK_NAME_MAX_LENGTH]
         try:

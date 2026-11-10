@@ -205,7 +205,9 @@ docker compose exec api python manage.py solidtime_reconcile [--project KARA] [-
 ```
 
 It prints `IDENT: project=existing|created|would_create created=N renamed=N
-unchanged=N errors=N` per project and a total line. Writes are spaced by
+unchanged=N errors=N` per project and a total line. `--rename-from OLD`
+(needs `--project`) first renames `[OLD-N]` tasks, and the `OLD` project if it
+is still named that, to the current identifier. Writes are spaced by
 `--pause` seconds to stay under solidtime's 200 requests/minute limit, which
 this token shares with the "Time tracked" row.
 
@@ -215,7 +217,13 @@ Cutover from the bridge:
 2. Stop the bridge: `systemctl disable --now solidtime-bridge.service`, remove
    the `renew_token.sh` and `healthcheck.sh` cron jobs, delete the `/_bridge/`
    webhook (Workspace settings -> Webhooks) and the nginx `/_bridge/` location.
-3. Run `solidtime_reconcile --dry-run`, check the output, then run it without
+3. Run `solidtime_reconcile --dry-run` and check the output. A line starting
+   with `!` means a project's tasks still use an old identifier. **ECOM**, for
+   example, was `SOPI`, so solidtime holds `[SOPI-N]` tasks with time entries.
+   Rename those first, or the reconcile creates duplicate `[ECOM-N]` tasks and
+   the history stays on the old ones:
+   `solidtime_reconcile --project ECOM --rename-from SOPI --dry-run`, then the
+   same command without `--dry-run`. Then run the full reconcile without
    `--dry-run`.
 4. Set `SOLIDTIME_SYNC_ENABLED=1` and restart api, worker and beat-worker
    (`./deploy.sh --no-build`).

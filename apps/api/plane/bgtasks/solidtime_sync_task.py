@@ -83,8 +83,20 @@ def sync_project_to_solidtime(self, project_id: str, old_identifier: str | None 
 
 
 @shared_task
-def reconcile_solidtime(project_identifier: str | None = None, dry_run: bool = False, pause_seconds: float = 0.3):
-    """Daily safety net and cutover backfill: per-project stats keyed by identifier."""
+def reconcile_solidtime(
+    project_identifier: str | None = None,
+    dry_run: bool = False,
+    pause_seconds: float = 0.3,
+    rename_from: str | None = None,
+):
+    """Daily safety net and cutover backfill: per-project stats keyed by identifier.
+
+    ``rename_from`` (needs ``project_identifier``) first renames ``[OLD-N]`` tasks left by an
+    identifier change that happened before the sync existed. In a dry run the reconcile is
+    skipped, because it would still see the old names.
+    """
+    if rename_from and not project_identifier:
+        raise ValueError("rename_from needs project_identifier")
     client = get_sync_client()
     if client is None:
         return {}
@@ -95,9 +107,17 @@ def reconcile_solidtime(project_identifier: str | None = None, dry_run: bool = F
     results: dict[str, dict] = {}
     for project in projects:
         try:
-            results[project.identifier] = reconcile_project(
+            result: dict = {}
+            if rename_from:
+                old = rename_from.upper()
+                result["renamed_from"] = {old: rename_project_identifier(client, project, old, dry_run=dry_run)}
+                if dry_run:
+                    results[project.identifier] = result
+                    continue
+            stats = reconcile_project(
                 client, project, list(issues_for_sync(project)), dry_run=dry_run, pause_seconds=pause_seconds
             )
+            results[project.identifier] = {**stats, **result}
         except SolidtimeError as e:
             log_exception(e, warning=True)
             results[project.identifier] = {"error": e.message}
