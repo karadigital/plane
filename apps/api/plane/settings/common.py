@@ -362,6 +362,11 @@ GITHUB_ACCESS_TOKEN = os.environ.get("GITHUB_ACCESS_TOKEN", False)
 SOLIDTIME_BASE_URL = os.environ.get("SOLIDTIME_BASE_URL", "")
 SOLIDTIME_API_TOKEN = os.environ.get("SOLIDTIME_API_TOKEN", "")
 SOLIDTIME_ORGANIZATION_ID = os.environ.get("SOLIDTIME_ORGANIZATION_ID", "")
+# Native Plane -> solidtime project/task sync (replaces solidtime-bridge). Off unless
+# enabled and scoped to one workspace; SOLIDTIME_DEFAULT_CLIENT_ID is used for new projects.
+SOLIDTIME_SYNC_ENABLED = os.environ.get("SOLIDTIME_SYNC_ENABLED", "0").lower() in ("1", "true", "yes")
+SOLIDTIME_SYNC_WORKSPACE_SLUG = os.environ.get("SOLIDTIME_SYNC_WORKSPACE_SLUG", "")
+SOLIDTIME_DEFAULT_CLIENT_ID = os.environ.get("SOLIDTIME_DEFAULT_CLIENT_ID", "")
 
 # Analytics
 ANALYTICS_SECRET_KEY = os.environ.get("ANALYTICS_SECRET_KEY", False)

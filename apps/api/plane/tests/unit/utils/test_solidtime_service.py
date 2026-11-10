@@ -89,6 +89,14 @@ class TestMatching:
         )
         assert find_project([sandbox], SimpleNamespace(identifier="KARA", name="KARA")) is None
 
+    def test_find_project_prefers_exact_case(self):
+        junk = {"id": "j", "name": "will"}
+        will = {"id": "w", "name": "WILL"}
+        kara = {"id": "k", "name": "Kara"}
+
+        assert find_project([junk, will], SimpleNamespace(identifier="WILL", name="WILL")) == will
+        assert find_project([kara], SimpleNamespace(identifier="KARA", name="KARA")) == kara
+
 
 @pytest.mark.unit
 class TestGetIssueTime:

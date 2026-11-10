@@ -23,6 +23,11 @@ TIME_ENTRIES_LIMIT = 500
 # solidtime's per-user API rate limit, which every Plane user shares through
 # the one admin token.
 LOOKUP_CACHE_SECONDS = 60
+# Colour for projects Plane creates in solidtime (the old bridge used the same).
+PROJECT_COLOR = "#6366f1"
+# solidtime's ProjectController::update overwrites these from the request (client_id and
+# billable_rate are nulled when missing), so every PUT must resend their current values.
+PROJECT_UPDATE_FIELDS = ("name", "color", "is_billable", "is_public", "client_id", "billable_rate")
 
 
 class SolidtimeError(Exception):
@@ -109,8 +114,14 @@ class SolidtimeClient:
                 return rows
             page += 1
 
+    def _cache_key(self, name: str) -> str:
+        return f"solidtime:{self.organization_id}:{name}"
+
+    def invalidate_projects_cache(self) -> None:
+        cache.delete(self._cache_key("projects"))
+
     def _cached(self, name: str, fetch) -> list[dict]:
-        key = f"solidtime:{self.organization_id}:{name}"
+        key = self._cache_key(name)
         rows = cache.get(key)
         if rows is None:
             rows = fetch()
@@ -122,6 +133,33 @@ class SolidtimeClient:
 
     def list_projects(self) -> list[dict]:
         return self._cached("projects", lambda: self._list_all_pages("/projects"))
+
+    def get_project(self, project_id: str) -> dict:
+        return self._request("GET", f"/projects/{project_id}")["data"]
+
+    def create_project(self, name: str, client_id: str | None = None, is_billable: bool = True) -> dict:
+        payload = {
+            "name": name,
+            "color": PROJECT_COLOR,
+            "is_billable": is_billable,
+            # Employees can only track time on public projects (or ones they are members of).
+            "is_public": True,
+            "client_id": client_id,
+        }
+        project = self._request("POST", "/projects", json=payload)["data"]
+        self.invalidate_projects_cache()
+        return project
+
+    def update_project(self, project_id: str, **changes) -> dict:
+        current = self.get_project(project_id)
+        payload = {field: current.get(field) for field in PROJECT_UPDATE_FIELDS}
+        payload.update(changes)
+        project = self._request("PUT", f"/projects/{project_id}", json=payload)["data"]
+        self.invalidate_projects_cache()
+        return project
+
+    def update_task(self, task_id: str, name: str) -> dict:
+        return self._request("PUT", f"/tasks/{task_id}", json={"name": name})["data"]
 
     def list_tasks(self, project_id: str) -> list[dict]:
         return self._list_all_pages("/tasks", {"project_id": project_id, "done": "all"})

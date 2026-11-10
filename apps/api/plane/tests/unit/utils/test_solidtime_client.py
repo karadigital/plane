@@ -168,3 +168,94 @@ class TestSolidtimeClient:
 
         assert exc_info.value.code == "invalid_request"
         assert exc_info.value.message == "The name has already been taken."
+
+
+@pytest.mark.unit
+class TestSolidtimeClientWrites:
+    def test_create_project_posts_identifier_with_defaults(self):
+        client, session = _client(_response(201, {"data": {"id": "p9"}}))
+
+        project = client.create_project("NEWP", client_id="c1")
+
+        args, kwargs = session.request.call_args
+        assert args == ("POST", f"{BASE}/projects")
+        assert kwargs["json"] == {
+            "name": "NEWP",
+            "color": "#6366f1",
+            "is_billable": True,
+            "is_public": True,
+            "client_id": "c1",
+        }
+        assert project == {"id": "p9"}
+
+    def test_create_project_invalidates_projects_cache(self):
+        page = {"data": [], "meta": {"current_page": 1, "last_page": 1}}
+        client, session = _client(_response(body=page), _response(201, {"data": {"id": "p9"}}), _response(body=page))
+
+        client.list_projects()
+        client.create_project("NEWP")
+        client.list_projects()
+
+        assert session.request.call_count == 3
+
+    def test_update_project_resends_current_fields(self):
+        current = {
+            "id": "p1",
+            "name": "KARA",
+            "color": "#ef5350",
+            "is_billable": True,
+            "is_public": True,
+            "client_id": "c1",
+            "billable_rate": 15000,
+            "estimated_time": None,
+        }
+        client, session = _client(
+            _response(body={"data": current}), _response(body={"data": {**current, "name": "KARX"}})
+        )
+
+        client.update_project("p1", name="KARX")
+
+        get_call, put_call = session.request.call_args_list
+        assert get_call.args == ("GET", f"{BASE}/projects/p1")
+        assert put_call.args == ("PUT", f"{BASE}/projects/p1")
+        assert put_call.kwargs["json"] == {
+            "name": "KARX",
+            "color": "#ef5350",
+            "is_billable": True,
+            "is_public": True,
+            "client_id": "c1",
+            "billable_rate": 15000,
+        }
+
+    def test_update_project_invalidates_projects_cache(self):
+        page = {"data": [], "meta": {"current_page": 1, "last_page": 1}}
+        current = {
+            "id": "p1",
+            "name": "KARA",
+            "color": "#ef5350",
+            "is_billable": True,
+            "is_public": True,
+            "client_id": None,
+            "billable_rate": None,
+        }
+        client, session = _client(
+            _response(body=page),
+            _response(body={"data": current}),
+            _response(body={"data": current}),
+            _response(body=page),
+        )
+
+        client.list_projects()
+        client.update_project("p1", name="KARX")
+        client.list_projects()
+
+        assert session.request.call_count == 4
+
+    def test_update_task_puts_name(self):
+        client, session = _client(_response(body={"data": {"id": "t1"}}))
+
+        client.update_task("t1", "[KARX-1] A")
+
+        args, kwargs = session.request.call_args
+        assert args == ("PUT", f"{BASE}/tasks/t1")
+        assert kwargs["json"] == {"name": "[KARX-1] A"}

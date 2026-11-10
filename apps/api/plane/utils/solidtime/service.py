@@ -40,10 +40,23 @@ def find_member(members: list[dict], email: str) -> dict | None:
 
 
 def find_project(projects: list[dict], project) -> dict | None:
-    for wanted in (_norm(project.identifier), _norm(project.name)):
-        match = next((p for p in projects if _norm(p.get("name")) == wanted), None)
-        if match:
-            return match
+    """Identifier first (exact, then case-insensitive), then name the same way.
+
+    The exact match comes first so that ``WILL`` picks the ``WILL`` project and not
+    a stray ``will`` one; the identifier still beats the project name.
+    """
+    for wanted in (project.identifier, project.name):
+        for exact in (True, False):
+            match = next(
+                (
+                    p
+                    for p in projects
+                    if ((p.get("name") or "").strip() == wanted if exact else _norm(p.get("name")) == _norm(wanted))
+                ),
+                None,
+            )
+            if match:
+                return match
     return None
 
 
