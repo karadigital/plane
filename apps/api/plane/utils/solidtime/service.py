@@ -101,6 +101,11 @@ def _find_or_create_task(client: SolidtimeClient, project: dict, issue) -> dict:
     task = find_task(client.list_tasks(project["id"]), issue)
     if task is not None:
         return task
+    return create_task_or_reuse(client, project, issue)
+
+
+def create_task_or_reuse(client: SolidtimeClient, project: dict, issue) -> dict:
+    """Create the work item's task; on a duplicate-name 422, reuse the one that now exists."""
     try:
         return client.create_task(project["id"], task_name(issue))
     except SolidtimeError as e:

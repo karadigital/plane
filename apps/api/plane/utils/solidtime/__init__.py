@@ -13,6 +13,14 @@ from .service import (
     task_name,
     task_prefix,
 )
+from .sync import (
+    ensure_project,
+    get_sync_client,
+    reconcile_project,
+    rename_project_identifier,
+    sync_enabled,
+    sync_issue_task,
+)
 
 __all__ = [
     "SolidtimeClient",
@@ -25,4 +33,10 @@ __all__ = [
     "serialize_entry",
     "task_name",
     "task_prefix",
+    "ensure_project",
+    "get_sync_client",
+    "reconcile_project",
+    "rename_project_identifier",
+    "sync_enabled",
+    "sync_issue_task",
 ]
