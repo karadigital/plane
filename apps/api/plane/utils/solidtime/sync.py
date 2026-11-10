@@ -47,11 +47,26 @@ def _default_client_id() -> str | None:
     return getattr(settings, "SOLIDTIME_DEFAULT_CLIENT_ID", "") or None
 
 
+def _create_project_or_reuse(client: SolidtimeClient, plane_project) -> dict:
+    """Create the project; on a duplicate-name 422 (a concurrent project/work item sync, or a
+    stale projects cache) reuse the one that now exists."""
+    try:
+        return client.create_project(plane_project.identifier, client_id=_default_client_id())
+    except SolidtimeError as e:
+        if e.code != "invalid_request":
+            raise
+        client.invalidate_projects_cache()
+        project = find_project(client.list_projects(), plane_project)
+        if project is None:
+            raise
+        return project
+
+
 def ensure_project(client: SolidtimeClient, plane_project) -> dict:
     project = find_project(client.list_projects(), plane_project)
     if project is not None:
         return project
-    return client.create_project(plane_project.identifier, client_id=_default_client_id())
+    return _create_project_or_reuse(client, plane_project)
 
 
 def sync_issue_task(client: SolidtimeClient, issue) -> str:
@@ -108,7 +123,7 @@ def reconcile_project(
         if dry_run:
             stats.update(project="would_create", created=len(issues))
             return stats
-        project = client.create_project(plane_project.identifier, client_id=_default_client_id())
+        project = _create_project_or_reuse(client, plane_project)
         stats["project"] = "created"
         tasks_by_prefix: dict[str, list[dict]] = {}
     else:

@@ -327,3 +327,33 @@ class TestDuplicatePrefixTasks:
 
         assert sync_issue_task(client, _issue(9, "Catch up")) == "unchanged"
         client.update_task.assert_not_called()
+
+
+@pytest.mark.unit
+class TestEnsureProjectRace:
+    def test_ensure_project_reuses_project_created_concurrently(self, sync_settings):
+        created_elsewhere = {"id": "p9", "name": "TEMPX"}
+        client = _client()
+        client.list_projects.side_effect = [[], [created_elsewhere]]
+        client.create_project.side_effect = SolidtimeError("invalid_request", "The name has already been taken.")
+
+        assert ensure_project(client, _plane_project("TEMPX", "TEMPX")) == created_elsewhere
+        client.invalidate_projects_cache.assert_called_once()
+
+    def test_ensure_project_reraises_when_still_missing(self, sync_settings):
+        client = _client(projects=[])
+        client.create_project.side_effect = SolidtimeError("invalid_request", "bad")
+
+        with pytest.raises(SolidtimeError):
+            ensure_project(client, _plane_project("TEMPX", "TEMPX"))
+
+    def test_sync_issue_task_survives_project_create_race(self, sync_settings):
+        created_elsewhere = {"id": "p9", "name": "TEMPX"}
+        client = _client()
+        client.list_projects.side_effect = [[], [created_elsewhere]]
+        client.create_project.side_effect = SolidtimeError("invalid_request", "The name has already been taken.")
+
+        issue = _issue(1, "First Task", project=_plane_project("TEMPX", "TEMPX"))
+
+        assert sync_issue_task(client, issue) == "created"
+        client.create_task.assert_called_once_with("p9", "[TEMPX-1] First Task")
