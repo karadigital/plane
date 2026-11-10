@@ -29,9 +29,11 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        if get_sync_client() is None:
+        # Runs even while SOLIDTIME_SYNC_ENABLED is off: the cutover dry-run happens before the flip.
+        if get_sync_client(require_enabled=False) is None:
             raise CommandError(
-                "solidtime sync is not enabled (SOLIDTIME_SYNC_ENABLED / SOLIDTIME_SYNC_WORKSPACE_SLUG / SOLIDTIME_*)"
+                "solidtime sync is not configured "
+                "(SOLIDTIME_SYNC_WORKSPACE_SLUG / SOLIDTIME_BASE_URL / SOLIDTIME_API_TOKEN / SOLIDTIME_ORGANIZATION_ID)"
             )
         rename_from = options["rename_from"].upper() if options["rename_from"] else None
         if rename_from and not options["project"]:
@@ -44,6 +46,7 @@ class Command(BaseCommand):
             dry_run=options["dry_run"],
             pause_seconds=options["pause"],
             rename_from=rename_from,
+            require_enabled=False,
         )
 
         totals = dict.fromkeys(COUNTERS, 0)

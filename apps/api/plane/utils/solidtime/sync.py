@@ -9,6 +9,7 @@ Plane project identifier (or its name), and a task starts with ``[IDENT-N]``.
 """
 
 # Python imports
+import logging
 import re
 import time
 from collections.abc import Callable, Iterable
@@ -20,6 +21,8 @@ from django.conf import settings
 from .client import SolidtimeClient, SolidtimeError
 from .service import TASK_NAME_MAX_LENGTH, create_task_or_reuse, find_project, find_task, task_name, task_prefix
 
+logger = logging.getLogger("plane.worker")
+
 TASK_PREFIX_PATTERN = re.compile(r"^(\[[^\]]+\])")
 
 
@@ -29,8 +32,13 @@ def sync_enabled() -> bool:
     )
 
 
-def get_sync_client() -> SolidtimeClient | None:
-    if not sync_enabled():
+def get_sync_client(require_enabled: bool = True) -> SolidtimeClient | None:
+    """The client for syncing, or None. ``require_enabled=False`` is for the operator's
+    ``solidtime_reconcile`` command, which must work before SOLIDTIME_SYNC_ENABLED is turned on
+    (cutover dry-run); it still needs the workspace slug and the solidtime settings."""
+    if require_enabled and not sync_enabled():
+        return None
+    if not (getattr(settings, "SOLIDTIME_SYNC_WORKSPACE_SLUG", "") or "").strip():
         return None
     return SolidtimeClient.from_settings()
 
@@ -135,26 +143,43 @@ def reconcile_project(
 
 
 def rename_project_identifier(
-    client: SolidtimeClient, plane_project, old_identifier: str, dry_run: bool = False
+    client: SolidtimeClient,
+    plane_project,
+    old_identifier: str,
+    dry_run: bool = False,
+    pause_seconds: float = 0.0,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> dict:
     """After ``OLD`` → ``NEW``: rename the ``OLD`` solidtime project and every ``[OLD-N]`` task.
 
     Also used at cutover for identifiers changed before the sync existed (ECOM was SOPI).
-    With ``dry_run`` it only counts what it would rename.
+    With ``dry_run`` it only counts. A solidtime outage or rate limit raises, so the Celery task
+    retries; tasks already renamed no longer match ``[OLD-N]``, so a retry picks up where it stopped.
     """
     stats = {"project_renamed": False, "tasks_renamed": 0, "errors": 0}
+    new_identifier = plane_project.identifier
     projects = client.list_projects()
-    project = find_project(projects, plane_project)
-    if project is None:
-        old_project = next((p for p in projects if (p.get("name") or "").strip() == old_identifier), None)
-        if old_project is not None:
+
+    def named(name: str) -> dict | None:
+        return next((p for p in projects if (p.get("name") or "").strip() == name), None)
+
+    project = named(old_identifier)
+    if project is not None:
+        if named(new_identifier) is None:
             stats["project_renamed"] = True
-            project = (
-                old_project if dry_run else client.update_project(old_project["id"], name=plane_project.identifier)
-            )
-        elif dry_run:
-            return stats
+            if not dry_run:
+                project = client.update_project(project["id"], name=new_identifier)
         else:
+            logger.warning(
+                "solidtime project %s kept: a project named %s already exists; renaming its tasks in place",
+                old_identifier,
+                new_identifier,
+            )
+    else:
+        project = find_project(projects, plane_project)
+        if project is None:
+            if dry_run:
+                return stats
             project = ensure_project(client, plane_project)
 
     old_prefix = re.compile(rf"^\[{re.escape(old_identifier)}-(\d+)\](.*)$", re.DOTALL)
@@ -165,10 +190,14 @@ def rename_project_identifier(
         if dry_run:
             stats["tasks_renamed"] += 1
             continue
-        new_name = f"[{plane_project.identifier}-{match.group(1)}]{match.group(2)}"[:TASK_NAME_MAX_LENGTH]
+        new_name = f"[{new_identifier}-{match.group(1)}]{match.group(2)}"[:TASK_NAME_MAX_LENGTH]
         try:
             client.update_task(task["id"], new_name)
             stats["tasks_renamed"] += 1
-        except SolidtimeError:
+        except SolidtimeError as e:
+            if e.code == "unavailable":
+                raise
             stats["errors"] += 1
+        if pause_seconds > 0:
+            sleep(pause_seconds)
     return stats

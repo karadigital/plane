@@ -134,7 +134,7 @@ class TestSyncProjectTask:
         ensure = mocker.patch.object(tasks, "ensure_project", return_value={"id": "p1"})
 
         sync_project_to_solidtime.run(str(project.id), old_identifier="OLD")
-        rename.assert_called_once_with(scoped, project, "OLD")
+        rename.assert_called_once_with(scoped, project, "OLD", pause_seconds=0.3)
         ensure.assert_not_called()
 
         sync_project_to_solidtime.run(str(project.id))
@@ -203,7 +203,7 @@ class TestReconcileRenameFrom:
 
         result = reconcile_solidtime(project_identifier="SP", rename_from="OLD", pause_seconds=0)
 
-        rename.assert_called_once_with(scoped, project, "OLD", dry_run=False)
+        rename.assert_called_once_with(scoped, project, "OLD", dry_run=False, pause_seconds=0)
         assert result == {"SP": {**reconcile_stats, "renamed_from": {"OLD": rename_stats}}}
 
     def test_rename_from_dry_run_skips_reconcile(self, scoped, project, mocker):
@@ -213,10 +213,38 @@ class TestReconcileRenameFrom:
 
         result = reconcile_solidtime(project_identifier="SP", rename_from="OLD", dry_run=True)
 
-        rename.assert_called_once_with(scoped, project, "OLD", dry_run=True)
+        rename.assert_called_once_with(scoped, project, "OLD", dry_run=True, pause_seconds=0.3)
         reconcile.assert_not_called()
         assert result == {"SP": {"renamed_from": {"OLD": rename_stats}}}
 
     def test_rename_from_requires_project(self, scoped):
         with pytest.raises(ValueError):
             reconcile_solidtime(rename_from="OLD")
+
+
+@pytest.mark.unit
+class TestWorkerRegistration:
+    def test_worker_imports_solidtime_tasks(self, settings):
+        assert "plane.bgtasks.solidtime_sync_task" in settings.CELERY_IMPORTS
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOperatorReconcile:
+    def test_reconcile_can_run_with_flag_off_when_forced(self, settings, workspace, project, mocker):
+        settings.SOLIDTIME_SYNC_ENABLED = False
+        settings.SOLIDTIME_SYNC_WORKSPACE_SLUG = workspace.slug
+        client = mocker.MagicMock()
+        get_client = mocker.patch.object(tasks, "get_sync_client", return_value=client)
+        mocker.patch.object(tasks, "reconcile_project", return_value={"project": "existing"})
+
+        reconcile_solidtime(require_enabled=False)
+
+        get_client.assert_called_once_with(require_enabled=False)
+
+    def test_project_task_passes_pause_to_rename(self, scoped, project, mocker):
+        rename = mocker.patch.object(tasks, "rename_project_identifier", return_value={"tasks_renamed": 0})
+
+        sync_project_to_solidtime.run(str(project.id), old_identifier="OLD")
+
+        rename.assert_called_once_with(scoped, project, "OLD", pause_seconds=0.3)

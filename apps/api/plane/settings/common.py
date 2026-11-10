@@ -343,6 +343,8 @@ CELERY_IMPORTS = (
     "plane.bgtasks.email_notification_task",
     "plane.bgtasks.cleanup_task",
     "plane.license.bgtasks.telemetry_metrics",
+    # solidtime project/task sync (KARA-220): signals enqueue it lazily, so the worker must import it
+    "plane.bgtasks.solidtime_sync_task",
     # management tasks
     "plane.bgtasks.dummy_data_task",
     # issue version tasks

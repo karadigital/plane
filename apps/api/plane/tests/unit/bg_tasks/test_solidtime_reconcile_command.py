@@ -46,7 +46,9 @@ class TestSolidtimeReconcileCommand:
 
         output = _run("--project", "KARA", "--dry-run", "--pause", "0")
 
-        reconcile.assert_called_once_with(project_identifier="KARA", dry_run=True, pause_seconds=0.0, rename_from=None)
+        reconcile.assert_called_once_with(
+            project_identifier="KARA", dry_run=True, pause_seconds=0.0, rename_from=None, require_enabled=False
+        )
         assert output.splitlines()[0] == "DRY RUN: no changes will be written"
 
     def test_command_defaults(self, configured, mocker):
@@ -54,12 +56,14 @@ class TestSolidtimeReconcileCommand:
 
         _run()
 
-        reconcile.assert_called_once_with(project_identifier=None, dry_run=False, pause_seconds=0.3, rename_from=None)
+        reconcile.assert_called_once_with(
+            project_identifier=None, dry_run=False, pause_seconds=0.3, rename_from=None, require_enabled=False
+        )
 
     def test_command_fails_when_not_configured(self, mocker):
         mocker.patch(f"{COMMAND}.get_sync_client", return_value=None)
 
-        with pytest.raises(CommandError, match="solidtime sync is not enabled"):
+        with pytest.raises(CommandError, match="solidtime sync is not configured"):
             _run()
 
 
@@ -98,7 +102,7 @@ class TestSolidtimeReconcileLegacyPrefix:
         output = _run("--project", "ECOM", "--rename-from", "sopi", "--dry-run")
 
         reconcile.assert_called_once_with(
-            project_identifier="ECOM", dry_run=True, pause_seconds=0.3, rename_from="SOPI"
+            project_identifier="ECOM", dry_run=True, pause_seconds=0.3, rename_from="SOPI", require_enabled=False
         )
         assert "ECOM: renamed from SOPI: project_renamed=False tasks_renamed=297 errors=2" in output
         assert output.strip().splitlines()[-1] == "Total: created=0 renamed=0 unchanged=0 errors=2"
@@ -106,3 +110,14 @@ class TestSolidtimeReconcileLegacyPrefix:
     def test_command_rename_from_requires_project(self, configured):
         with pytest.raises(CommandError, match="--rename-from needs --project"):
             _run("--rename-from", "SOPI")
+
+
+@pytest.mark.unit
+class TestSolidtimeReconcileOperator:
+    def test_command_works_with_sync_flag_off(self, mocker):
+        get_client = mocker.patch(f"{COMMAND}.get_sync_client", return_value=mocker.MagicMock())
+        mocker.patch(f"{COMMAND}.reconcile_solidtime", return_value={})
+
+        _run("--dry-run")
+
+        get_client.assert_called_once_with(require_enabled=False)

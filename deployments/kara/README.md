@@ -217,7 +217,9 @@ Cutover from the bridge:
 2. Stop the bridge: `systemctl disable --now solidtime-bridge.service`, remove
    the `renew_token.sh` and `healthcheck.sh` cron jobs, delete the `/_bridge/`
    webhook (Workspace settings -> Webhooks) and the nginx `/_bridge/` location.
-3. Run `solidtime_reconcile --dry-run` and check the output. A line starting
+3. Run `solidtime_reconcile --dry-run` and check the output. The command
+   works while `SOLIDTIME_SYNC_ENABLED=0`; it only needs the slug and the
+   `SOLIDTIME_*` credentials. A line starting
    with `!` means a project's tasks still use an old identifier. **ECOM**, for
    example, was `SOPI`, so solidtime holds `[SOPI-N]` tasks with time entries.
    Rename those first, or the reconcile creates duplicate `[ECOM-N]` tasks and

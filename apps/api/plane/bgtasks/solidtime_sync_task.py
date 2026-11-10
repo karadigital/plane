@@ -24,6 +24,8 @@ from plane.utils.solidtime import (
 
 RETRY_BASE_SECONDS = 60
 MAX_RETRIES = 5
+# Seconds between solidtime writes in bulk renames/reconciles (solidtime allows 200 requests/min).
+WRITE_PAUSE_SECONDS = 0.3
 
 
 def projects_for_sync():
@@ -76,7 +78,7 @@ def sync_project_to_solidtime(self, project_id: str, old_identifier: str | None 
         return None
     try:
         if old_identifier and old_identifier != project.identifier:
-            return rename_project_identifier(client, project, old_identifier)
+            return rename_project_identifier(client, project, old_identifier, pause_seconds=WRITE_PAUSE_SECONDS)
         return ensure_project(client, project)
     except SolidtimeError as e:
         return _handle_error(self, e)
@@ -86,8 +88,9 @@ def sync_project_to_solidtime(self, project_id: str, old_identifier: str | None 
 def reconcile_solidtime(
     project_identifier: str | None = None,
     dry_run: bool = False,
-    pause_seconds: float = 0.3,
+    pause_seconds: float = WRITE_PAUSE_SECONDS,
     rename_from: str | None = None,
+    require_enabled: bool = True,
 ):
     """Daily safety net and cutover backfill: per-project stats keyed by identifier.
 
@@ -97,7 +100,7 @@ def reconcile_solidtime(
     """
     if rename_from and not project_identifier:
         raise ValueError("rename_from needs project_identifier")
-    client = get_sync_client()
+    client = get_sync_client(require_enabled=require_enabled)
     if client is None:
         return {}
     projects = projects_for_sync().order_by("identifier")
@@ -110,7 +113,9 @@ def reconcile_solidtime(
             result: dict = {}
             if rename_from:
                 old = rename_from.upper()
-                result["renamed_from"] = {old: rename_project_identifier(client, project, old, dry_run=dry_run)}
+                result["renamed_from"] = {
+                    old: rename_project_identifier(client, project, old, dry_run=dry_run, pause_seconds=pause_seconds)
+                }
                 if dry_run:
                     results[project.identifier] = result
                     continue

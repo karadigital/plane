@@ -262,3 +262,51 @@ class TestLegacyPrefixes:
 
         assert stats["other_prefixes"] == {"SOPI": 2}
         assert stats["unchanged"] == 1
+
+
+@pytest.mark.unit
+class TestRenameFixes:
+    def test_identifier_rename_renames_project_still_named_old_identifier(self, sync_settings):
+        client = _client(tasks=[_task("t1", "[KARA-1] A")])
+
+        stats = rename_project_identifier(client, _plane_project("KARX", "KARA"), "KARA")
+
+        client.update_project.assert_called_once_with("p1", name="KARX")
+        client.update_task.assert_called_once_with("t1", "[KARX-1] A")
+        assert stats == {"project_renamed": True, "tasks_renamed": 1, "errors": 0}
+
+    def test_identifier_rename_when_new_name_taken_renames_tasks_in_old_project(self, sync_settings):
+        old = {"id": "p1", "name": "KARA"}
+        taken = {"id": "p2", "name": "KARX"}
+        client = _client(projects=[old, taken], tasks=[_task("t1", "[KARA-1] A")])
+
+        stats = rename_project_identifier(client, _plane_project("KARX", "KARX"), "KARA")
+
+        client.update_project.assert_not_called()
+        client.list_tasks.assert_called_once_with("p1")
+        client.update_task.assert_called_once_with("t1", "[KARX-1] A")
+        assert stats == {"project_renamed": False, "tasks_renamed": 1, "errors": 0}
+
+    def test_identifier_rename_raises_when_unavailable(self, sync_settings):
+        client = _client(tasks=[_task("t1", "[KARA-1] A"), _task("t2", "[KARA-2] B")])
+        client.update_task.side_effect = SolidtimeError("unavailable", "rate limited")
+
+        with pytest.raises(SolidtimeError):
+            rename_project_identifier(client, _plane_project("KARX", "KARX"), "KARA")
+        assert client.update_task.call_count == 1
+
+    def test_identifier_rename_pauses_between_writes(self, sync_settings):
+        sleep = MagicMock()
+        client = _client(tasks=[_task("t1", "[KARA-1] A"), _task("t2", "[KARA-2] B")])
+
+        rename_project_identifier(client, _plane_project("KARX", "KARX"), "KARA", pause_seconds=0.3, sleep=sleep)
+
+        assert sleep.call_args_list == [call(0.3), call(0.3)]
+
+    def test_get_sync_client_for_operator_ignores_flag_but_needs_slug(self, sync_settings):
+        sync_settings.SOLIDTIME_SYNC_ENABLED = False
+        assert get_sync_client() is None
+        assert get_sync_client(require_enabled=False) is not None
+
+        sync_settings.SOLIDTIME_SYNC_WORKSPACE_SLUG = ""
+        assert get_sync_client(require_enabled=False) is None
