@@ -237,6 +237,30 @@ Cutover from the bridge:
 6. Once stable, archive `/opt/solidtime-bridge` and revoke the bridge's old
    solidtime token and Plane API key.
 
+### Time per work item in the public API (KARA-219)
+
+API-key clients (client-kara) read the time logged per work item with:
+
+```
+GET /api/v1/workspaces/<slug>/projects/<project_id>/time-summary/
+X-API-Key: <Plane API key of a project member>
+
+200 {"configured": true, "total_seconds": 780,
+     "work_items": [{"id": "<uuid>", "sequence_id": 1, "seconds": 660}, ...]}
+```
+
+- **What it counts:** every finished time entry on a task named `[IDENT-N] …`,
+  billable or not. Running timers are not counted.
+  - Duplicate `[IDENT-N]` tasks are summed together.
+  - Only work items with time are listed; a work item that is missing has 0.
+- **Configuration:** it uses the same `SOLIDTIME_*` settings as above, with no new
+  variables. Without them the response is
+  `{"configured": false, "total_seconds": 0, "work_items": []}`.
+- **Freshness and cost:** results are cached for 60 s per project. Each refresh
+  makes 2–3 solidtime requests, which count against the token's limit of 200 requests per minute.
+- **When solidtime fails:** if solidtime is down, rate-limited or rejects the token, the response is
+  `502 {"code": "solidtime_unavailable"}`.
+
 ## Kara-specific code changes
 
 Changes previously applied as bind-mounted patches now live in source:
