@@ -32,7 +32,7 @@ the existing `plane.utils.solidtime` client and service, and pytest with unit an
   - A work item with more than one `[IDENT-N]` task in solidtime gets the sum of all of them.
   - Running timers are not counted, the same as the KARA-30 panel.
 - **200, solidtime not configured on the server:** `{"configured": false, "total_seconds": 0, "work_items": []}`.
-- **404:** the project is not in the workspace.
+- **403:** the key's user is not a member of the project, or the project id is unknown (the permission check answers first).
 - **502:** `{"error": "...", "code": "solidtime_unavailable"}` when solidtime is down, rate-limited or rejects the token.
 - **Freshness:** results can be up to 60 s old.
 
@@ -92,7 +92,7 @@ the existing `plane.utils.solidtime` client and service, and pytest with unit an
 - Cached: the second request makes no solidtime call.
 - Unavailable: 502 `solidtime_unavailable`, and the token is not in the body.
 - Not a project member: 403.
-- Unknown project: 404.
+- Unknown project: 403.
 
 **Implement:**
 

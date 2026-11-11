@@ -277,7 +277,7 @@ class TestSolidtimeClientAggregate:
 
         args, kwargs = session.request.call_args
         assert args == ("GET", f"{BASE}/time-entries/aggregate")
-        assert kwargs["params"] == {"group": "task", "project_ids[]": "p1"}
+        assert kwargs["params"] == {"group": "task", "project_ids[]": "p1", "active": "false"}
 
     def test_aggregate_seconds_by_task_without_entries(self):
         client, _ = _client(_response(body={"data": {"seconds": 0, "grouped_data": []}}))

@@ -174,9 +174,14 @@ class SolidtimeClient:
     def aggregate_seconds_by_task(self, project_id: str) -> dict[str, int]:
         """Seconds of finished time entries per task id in one project, summed by solidtime.
 
-        Entries without a task (``key`` null) are dropped; running timers have no end and add nothing.
+        Entries without a task (``key`` null) are dropped. ``active=false`` leaves running timers out:
+        solidtime would otherwise sum them up to now.
         """
-        body = self._request("GET", "/time-entries/aggregate", params={"group": "task", "project_ids[]": project_id})
+        body = self._request(
+            "GET",
+            "/time-entries/aggregate",
+            params={"group": "task", "project_ids[]": project_id, "active": "false"},
+        )
         groups = (body.get("data") or {}).get("grouped_data") or []
         return {g["key"]: int(g.get("seconds") or 0) for g in groups if g.get("key")}
 

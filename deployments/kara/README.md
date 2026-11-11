@@ -257,7 +257,10 @@ X-API-Key: <Plane API key of a project member>
   variables. Without them the response is
   `{"configured": false, "total_seconds": 0, "work_items": []}`.
 - **Freshness and cost:** results are cached for 60 s per project. Each refresh
-  makes 2–3 solidtime requests, which count against the token's limit of 200 requests per minute.
+  makes 2 solidtime requests plus one per page of the project's tasks (pages
+  hold `PAGINATION_PER_PAGE_DEFAULT` rows; keep it at 500 on the solidtime
+  server, since solidtime's code default is 15). They count against the token's
+  limit of 200 requests per minute.
 - **When solidtime fails:** if solidtime is down, rate-limited or rejects the token, the response is
   `502 {"code": "solidtime_unavailable"}`.
 
