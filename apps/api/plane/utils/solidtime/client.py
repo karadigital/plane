@@ -176,9 +176,7 @@ class SolidtimeClient:
 
         Entries without a task (``key`` null) are dropped; running timers have no end and add nothing.
         """
-        body = self._request(
-            "GET", "/time-entries/aggregate", params={"group": "task", "project_ids[]": project_id}
-        )
+        body = self._request("GET", "/time-entries/aggregate", params={"group": "task", "project_ids[]": project_id})
         groups = (body.get("data") or {}).get("grouped_data") or []
         return {g["key"]: int(g.get("seconds") or 0) for g in groups if g.get("key")}
 
