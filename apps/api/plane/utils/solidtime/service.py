@@ -9,6 +9,7 @@ identifier (e.g. ``KARA``) and a task is named ``[KARA-30] <work item name>``.
 """
 
 # Python imports
+import re
 from datetime import datetime, timedelta
 
 # Module imports
@@ -99,6 +100,30 @@ def get_issue_time(client: SolidtimeClient, issue) -> dict:
     entries.sort(key=lambda e: e["start"], reverse=True)
     total = sum(e["duration"] for e in entries if not e["is_running"])
     return {"total_seconds": total, "entries": entries}
+
+
+def project_time_by_sequence(client: SolidtimeClient, plane_project) -> dict[int, int]:
+    """Seconds of finished time entries per work item sequence id, for one Plane project.
+
+    Every ``[IDENT-N]`` task counts, so a work item with duplicate tasks gets their sum.
+    Tasks are only listed when the project has any time.
+    """
+    project = find_project(client.list_projects(), plane_project)
+    if project is None:
+        return {}
+    seconds_by_task = client.aggregate_seconds_by_task(project["id"])
+    if not seconds_by_task:
+        return {}
+
+    prefix = re.compile(rf"^\[{re.escape(plane_project.identifier)}-(\d+)\]")
+    seconds_by_sequence: dict[int, int] = {}
+    for task in client.list_tasks(project["id"]):
+        seconds = seconds_by_task.get(task.get("id"))
+        match = prefix.match(task.get("name") or "")
+        if seconds and match:
+            sequence_id = int(match.group(1))
+            seconds_by_sequence[sequence_id] = seconds_by_sequence.get(sequence_id, 0) + seconds
+    return seconds_by_sequence
 
 
 def _find_or_create_task(client: SolidtimeClient, project: dict, issue) -> dict:

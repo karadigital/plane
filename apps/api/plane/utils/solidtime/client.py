@@ -171,6 +171,17 @@ class SolidtimeClient:
         body = self._request("GET", "/time-entries", params={"task_ids[]": task_id, "limit": TIME_ENTRIES_LIMIT})
         return body.get("data", [])
 
+    def aggregate_seconds_by_task(self, project_id: str) -> dict[str, int]:
+        """Seconds of finished time entries per task id in one project, summed by solidtime.
+
+        Entries without a task (``key`` null) are dropped; running timers have no end and add nothing.
+        """
+        body = self._request(
+            "GET", "/time-entries/aggregate", params={"group": "task", "project_ids[]": project_id}
+        )
+        groups = (body.get("data") or {}).get("grouped_data") or []
+        return {g["key"]: int(g.get("seconds") or 0) for g in groups if g.get("key")}
+
     def create_time_entry(
         self,
         *,

@@ -259,3 +259,27 @@ class TestSolidtimeClientWrites:
         args, kwargs = session.request.call_args
         assert args == ("PUT", f"{BASE}/tasks/t1")
         assert kwargs["json"] == {"name": "[KARX-1] A"}
+
+
+@pytest.mark.unit
+class TestSolidtimeClientAggregate:
+    def test_aggregate_seconds_by_task_groups_by_task(self):
+        body = {
+            "data": {
+                "seconds": 900,
+                "grouped_type": "task",
+                "grouped_data": [{"key": "t1", "seconds": 600}, {"key": None, "seconds": 300}],
+            }
+        }
+        client, session = _client(_response(body=body))
+
+        assert client.aggregate_seconds_by_task("p1") == {"t1": 600}
+
+        args, kwargs = session.request.call_args
+        assert args == ("GET", f"{BASE}/time-entries/aggregate")
+        assert kwargs["params"] == {"group": "task", "project_ids[]": "p1"}
+
+    def test_aggregate_seconds_by_task_without_entries(self):
+        client, _ = _client(_response(body={"data": {"seconds": 0, "grouped_data": []}}))
+
+        assert client.aggregate_seconds_by_task("p1") == {}

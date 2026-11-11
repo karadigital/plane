@@ -16,6 +16,7 @@ from plane.utils.solidtime import (
     find_task,
     get_issue_time,
     log_issue_time,
+    project_time_by_sequence,
     task_name,
     task_prefix,
 )
@@ -223,3 +224,55 @@ class TestDuplicatePrefixes:
 
         assert find_task([stale, exact], _issue()) == exact
         assert find_task([stale], _issue()) == stale
+
+
+def _project(identifier="SP", name="Scoped Project"):
+    return SimpleNamespace(identifier=identifier, name=name)
+
+
+@pytest.mark.unit
+class TestProjectTimeBySequence:
+    def test_no_solidtime_project_returns_empty(self):
+        client = _client(projects=[])
+
+        assert project_time_by_sequence(client, _project()) == {}
+        client.aggregate_seconds_by_task.assert_not_called()
+        client.list_tasks.assert_not_called()
+
+    def test_no_time_skips_task_listing(self):
+        client = _client(projects=[{"id": "p1", "name": "SP"}])
+        client.aggregate_seconds_by_task.return_value = {}
+
+        assert project_time_by_sequence(client, _project()) == {}
+        client.aggregate_seconds_by_task.assert_called_once_with("p1")
+        client.list_tasks.assert_not_called()
+
+    def test_sums_per_sequence_id(self):
+        tasks = [
+            {"id": "t1", "name": "[SP-1] A"},
+            {"id": "t2", "name": "[SP-1] A old"},
+            {"id": "t3", "name": "[SP-10] B"},
+            {"id": "t4", "name": "[OLD-3] C"},
+            {"id": "t5", "name": "no prefix"},
+            {"id": "t6", "name": "[SP-2] untracked"},
+            {"id": "t7", "name": "[SP-1x] not a work item"},
+        ]
+        client = _client(projects=[{"id": "p1", "name": "SP"}], tasks=tasks)
+        client.aggregate_seconds_by_task.return_value = {
+            "t1": 600,
+            "t2": 60,
+            "t3": 120,
+            "t4": 999,
+            "t5": 999,
+            "t7": 999,
+        }
+
+        assert project_time_by_sequence(client, _project()) == {1: 660, 10: 120}
+        client.list_tasks.assert_called_once_with("p1")
+
+    def test_identifier_is_matched_literally(self):
+        tasks = [{"id": "t1", "name": "[A.B-1] X"}, {"id": "t2", "name": "[AxB-1] Y"}]
+        client = _client(projects=[{"id": "p1", "name": "A.B"}], tasks=tasks)
+        client.aggregate_seconds_by_task.return_value = {"t1": 60, "t2": 30}
+
+        assert project_time_by_sequence(client, _project(identifier="A.B")) == {1: 60}
