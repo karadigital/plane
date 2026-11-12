@@ -266,6 +266,27 @@
       "click_to_downvote": "Nhấp để bỏ phiếu chống",
       "click_to_view_upvotes": "Nhấp để xem phiếu thuận",
       "click_to_view_downvotes": "Nhấp để xem phiếu chống"
+    },
+    "solidtime": {
+      "label": "Thời gian đã ghi",
+      "log_time": "Ghi thời gian",
+      "modal_title": "Theo dõi thời gian",
+      "date": "Ngày",
+      "start_time": "Giờ bắt đầu",
+      "end_time": "Giờ kết thúc",
+      "hours": "Giờ",
+      "minutes": "Phút",
+      "description": "Mô tả",
+      "description_placeholder": "Bạn đã làm gì?",
+      "submit": "Gửi đến Time",
+      "success": "Đã ghi thời gian",
+      "no_entries": "Chưa có thời gian nào được ghi cho mục công việc này.",
+      "running": "Đang chạy",
+      "errors": {
+        "future": "Giờ bắt đầu không được ở tương lai",
+        "duration": "Thời lượng phải từ 1 phút đến 24 giờ",
+        "generic": "Không thể ghi thời gian. Vui lòng thử lại."
+      }
     }
   },
   "sub_work_item": {

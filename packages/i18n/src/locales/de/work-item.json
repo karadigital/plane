@@ -266,6 +266,27 @@
       "click_to_downvote": "Klicken zum Runterstimmen",
       "click_to_view_upvotes": "Klicken um Hochstimmen anzuzeigen",
       "click_to_view_downvotes": "Klicken um Runterstimmen anzuzeigen"
+    },
+    "solidtime": {
+      "label": "Erfasste Zeit",
+      "log_time": "Zeit erfassen",
+      "modal_title": "Zeiterfassung",
+      "date": "Datum",
+      "start_time": "Startzeit",
+      "end_time": "Endzeit",
+      "hours": "Stunden",
+      "minutes": "Minuten",
+      "description": "Beschreibung",
+      "description_placeholder": "Woran haben Sie gearbeitet?",
+      "submit": "An Time senden",
+      "success": "Zeit erfasst",
+      "no_entries": "Für dieses Arbeitselement wurde noch keine Zeit erfasst.",
+      "running": "Läuft",
+      "errors": {
+        "future": "Die Startzeit darf nicht in der Zukunft liegen",
+        "duration": "Die Dauer muss zwischen 1 Minute und 24 Stunden liegen",
+        "generic": "Zeit konnte nicht erfasst werden. Bitte versuchen Sie es erneut."
+      }
     }
   },
   "sub_work_item": {

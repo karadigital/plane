@@ -11,6 +11,7 @@ export * from "./issue_link";
 export * from "./issue_attachment";
 export * from "./issue_relation";
 export * from "./issue_sub_issues";
+export * from "./issue_solidtime";
 export * from "./activity/base";
 
 export type TLoader = "init-loader" | "mutation" | "pagination" | "loaded" | undefined;

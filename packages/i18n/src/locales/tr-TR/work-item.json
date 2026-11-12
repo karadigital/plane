@@ -266,6 +266,27 @@
       "click_to_downvote": "Olumsuz oy vermek için tıklayın",
       "click_to_view_upvotes": "Olumlu oyları görüntülemek için tıklayın",
       "click_to_view_downvotes": "Olumsuz oyları görüntülemek için tıklayın"
+    },
+    "solidtime": {
+      "label": "Kaydedilen süre",
+      "log_time": "Süre kaydet",
+      "modal_title": "Süre takibi",
+      "date": "Tarih",
+      "start_time": "Başlangıç saati",
+      "end_time": "Bitiş saati",
+      "hours": "Saat",
+      "minutes": "Dakika",
+      "description": "Açıklama",
+      "description_placeholder": "Ne üzerinde çalıştınız?",
+      "submit": "Time'a gönder",
+      "success": "Süre kaydedildi",
+      "no_entries": "Bu iş öğesi için henüz süre kaydedilmedi.",
+      "running": "Devam ediyor",
+      "errors": {
+        "future": "Başlangıç saati gelecekte olamaz",
+        "duration": "Süre 1 dakika ile 24 saat arasında olmalıdır",
+        "generic": "Süre kaydedilemedi. Lütfen tekrar deneyin."
+      }
     }
   },
   "sub_work_item": {

@@ -14,7 +14,7 @@ from django.db import models
 from django.db.models import Q
 
 # Module imports
-from plane.db.mixins import AuditModel
+from plane.db.mixins import AuditModel, ChangeTrackerMixin
 
 from .base import BaseModel
 
@@ -65,7 +65,10 @@ def get_default_preferences():
     return {"pages": {"block_display": True}, "navigation": {"default_tab": "work_items", "hide_in_more_menu": []}}
 
 
-class Project(BaseModel):
+class Project(ChangeTrackerMixin, BaseModel):
+    # identifier changes rename the solidtime project and its tasks (KARA-220)
+    TRACKED_FIELDS = ["identifier"]
+
     NETWORK_CHOICES = ((0, "Secret"), (2, "Public"))
     name = models.CharField(max_length=255, verbose_name="Project Name")
     description = models.TextField(verbose_name="Project Description", blank=True)

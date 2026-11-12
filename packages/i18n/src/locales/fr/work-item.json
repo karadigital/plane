@@ -266,6 +266,27 @@
       "click_to_downvote": "Cliquez pour voter contre",
       "click_to_view_upvotes": "Cliquez pour voir les votes pour",
       "click_to_view_downvotes": "Cliquez pour voir les votes contre"
+    },
+    "solidtime": {
+      "label": "Temps suivi",
+      "log_time": "Enregistrer du temps",
+      "modal_title": "Suivi du temps",
+      "date": "Date",
+      "start_time": "Heure de début",
+      "end_time": "Heure de fin",
+      "hours": "Heures",
+      "minutes": "Minutes",
+      "description": "Description",
+      "description_placeholder": "Sur quoi avez-vous travaillé ?",
+      "submit": "Envoyer à Time",
+      "success": "Temps enregistré",
+      "no_entries": "Aucun temps enregistré pour cet élément de travail.",
+      "running": "En cours",
+      "errors": {
+        "future": "L’heure de début ne peut pas être dans le futur",
+        "duration": "La durée doit être comprise entre 1 minute et 24 heures",
+        "generic": "Impossible d’enregistrer le temps. Veuillez réessayer."
+      }
     }
   },
   "sub_work_item": {

@@ -266,6 +266,27 @@
       "click_to_downvote": "Clic pentru a vota negativ",
       "click_to_view_upvotes": "Clic pentru a vedea voturile pozitive",
       "click_to_view_downvotes": "Clic pentru a vedea voturile negative"
+    },
+    "solidtime": {
+      "label": "Timp înregistrat",
+      "log_time": "Înregistrează timp",
+      "modal_title": "Urmărirea timpului",
+      "date": "Dată",
+      "start_time": "Ora de început",
+      "end_time": "Ora de sfârșit",
+      "hours": "Ore",
+      "minutes": "Minute",
+      "description": "Descriere",
+      "description_placeholder": "La ce ați lucrat?",
+      "submit": "Trimite în Time",
+      "success": "Timp înregistrat",
+      "no_entries": "Nu a fost înregistrat încă timp pentru această activitate.",
+      "running": "În desfășurare",
+      "errors": {
+        "future": "Ora de început nu poate fi în viitor",
+        "duration": "Durata trebuie să fie între 1 minut și 24 de ore",
+        "generic": "Timpul nu a putut fi înregistrat. Vă rugăm să încercați din nou."
+      }
     }
   },
   "sub_work_item": {

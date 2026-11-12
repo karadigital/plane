@@ -266,6 +266,27 @@
       "click_to_downvote": "Klik untuk memberi suara turun",
       "click_to_view_upvotes": "Klik untuk melihat suara naik",
       "click_to_view_downvotes": "Klik untuk melihat suara turun"
+    },
+    "solidtime": {
+      "label": "Waktu tercatat",
+      "log_time": "Catat waktu",
+      "modal_title": "Pencatatan waktu",
+      "date": "Tanggal",
+      "start_time": "Waktu mulai",
+      "end_time": "Waktu selesai",
+      "hours": "Jam",
+      "minutes": "Menit",
+      "description": "Deskripsi",
+      "description_placeholder": "Apa yang Anda kerjakan?",
+      "submit": "Kirim ke Time",
+      "success": "Waktu berhasil dicatat",
+      "no_entries": "Belum ada waktu yang dicatat untuk item kerja ini.",
+      "running": "Berjalan",
+      "errors": {
+        "future": "Waktu mulai tidak boleh di masa depan",
+        "duration": "Durasi harus antara 1 menit dan 24 jam",
+        "generic": "Gagal mencatat waktu. Silakan coba lagi."
+      }
     }
   },
   "sub_work_item": {

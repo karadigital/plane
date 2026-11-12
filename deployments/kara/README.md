@@ -146,6 +146,124 @@ docker run --rm -v plane_uploads:/data -v $B:/backup postgres:15.7-alpine \
 ./deploy.sh --no-build
 ```
 
+## Time (solidtime) integration
+
+Work items have a "Time tracked" row that logs time to solidtime
+(https://time.shrwt.id) and lists the time already tracked (KARA-30). It stays
+hidden until these are set in `.env`, then `./deploy.sh --no-build` (or a full
+deploy) restarts the API with them:
+
+```
+SOLIDTIME_BASE_URL=https://time.shrwt.id
+SOLIDTIME_API_TOKEN=<API token of a solidtime owner/admin>
+SOLIDTIME_ORGANIZATION_ID=<organization UUID from solidtime URLs>
+```
+
+- The token must belong to an owner/admin: Plane creates entries on behalf of
+  other members (matched by email) and reads everyone's entries on a work item.
+- A Plane project maps to the solidtime project named after its identifier
+  (`KARA`), falling back to the project name (`Sandbox`). Tasks are named
+  `[KARA-30] <work item name>` and are created automatically when missing.
+- A Plane user whose email is not a solidtime member gets a clear error and
+  nothing is created.
+- The token must be **long-lived**: Plane reads it from `.env` and never
+  rotates it (the old bridge renewed its own token weekly). Record its expiry
+  here and renew it before then:
+  `SOLIDTIME_API_TOKEN expires: YYYY-MM-DD`
+
+### Project and task sync (KARA-220, replaces solidtime-bridge)
+
+Plane keeps solidtime projects and `[IDENT-N] <work item name>` tasks in step,
+so the separate `solidtime-bridge` service is no longer needed:
+
+- Creating a work item creates its task. Renaming the work item, or publishing
+  a draft, renames or creates the task. Saves that only change other fields
+  (state, sort order, assignees, ...) do nothing.
+- Creating a project creates a solidtime project named after its identifier.
+  It is public, billable, colour `#6366f1`, and uses `SOLIDTIME_DEFAULT_CLIENT_ID`.
+  Changing a project's identifier (`KARA` -> `KARX`) renames that solidtime
+  project and every `[KARA-N]` task. Projects matched by name (`Sandbox`)
+  keep their name.
+- A daily reconcile at UTC 20:00 (03:00 WIB) creates anything missing and
+  fixes stale task names, catching bulk edits and outages.
+- Deleting or archiving a work item never deletes its solidtime task; time
+  entries are kept. Descriptions and states are not synced.
+- Archived Plane projects, drafts and deleted work items are skipped.
+  Intake/triage and archived work items are synced.
+
+```
+SOLIDTIME_SYNC_ENABLED=0                # 1 turns the sync on
+SOLIDTIME_SYNC_WORKSPACE_SLUG=kara-digital
+SOLIDTIME_DEFAULT_CLIENT_ID=8593681a-1042-4eb3-b068-0ef3b7099b3b   # client "Kara"
+```
+
+Manual backfill/repair (replaces `bridge.py sync`):
+
+```bash
+docker compose exec api python manage.py solidtime_reconcile --dry-run
+docker compose exec api python manage.py solidtime_reconcile [--project KARA] [--pause 0.3]
+```
+
+It prints `IDENT: project=existing|created|would_create created=N renamed=N
+unchanged=N errors=N` per project and a total line. `--rename-from OLD`
+(needs `--project`) first renames `[OLD-N]` tasks, and the `OLD` project if it
+is still named that, to the current identifier. Writes are spaced by
+`--pause` seconds to stay under solidtime's 200 requests/minute limit, which
+this token shares with the "Time tracked" row.
+
+Cutover from the bridge:
+
+1. Deploy with `SOLIDTIME_SYNC_ENABLED=0` and the slug and client id above set.
+2. Stop the bridge: `systemctl disable --now solidtime-bridge.service`, remove
+   the `renew_token.sh` and `healthcheck.sh` cron jobs, delete the `/_bridge/`
+   webhook (Workspace settings -> Webhooks) and the nginx `/_bridge/` location.
+3. Run `solidtime_reconcile --dry-run` and check the output. The command
+   works while `SOLIDTIME_SYNC_ENABLED=0`; it only needs the slug and the
+   `SOLIDTIME_*` credentials. A line starting
+   with `!` means a project's tasks still use an old identifier. **ECOM**, for
+   example, was `SOPI`, so solidtime holds `[SOPI-N]` tasks with time entries.
+   Rename those first, or the reconcile creates duplicate `[ECOM-N]` tasks and
+   the history stays on the old ones:
+   `solidtime_reconcile --project ECOM --rename-from SOPI --dry-run`, then the
+   same command without `--dry-run`. Then run the full reconcile without
+   `--dry-run`.
+4. Set `SOLIDTIME_SYNC_ENABLED=1` and restart api, worker and beat-worker
+   (`./deploy.sh --no-build`).
+5. Check end to end:
+   - a new work item's task appears;
+   - renaming the work item renames the task;
+   - a new project appears in solidtime;
+   - logging time from the sidebar updates "Time tracked".
+6. Once stable, archive `/opt/solidtime-bridge` and revoke the bridge's old
+   solidtime token and Plane API key.
+
+### Time per work item in the public API (KARA-219)
+
+API-key clients (client-kara) read the time logged per work item with:
+
+```
+GET /api/v1/workspaces/<slug>/projects/<project_id>/time-summary/
+X-API-Key: <Plane API key of a project member>
+
+200 {"configured": true, "total_seconds": 780,
+     "work_items": [{"id": "<uuid>", "sequence_id": 1, "seconds": 660}, ...]}
+```
+
+- **What it counts:** every finished time entry on a task named `[IDENT-N] …`,
+  billable or not. Running timers are not counted.
+  - Duplicate `[IDENT-N]` tasks are summed together.
+  - Only work items with time are listed; a work item that is missing has 0.
+- **Configuration:** it uses the same `SOLIDTIME_*` settings as above, with no new
+  variables. Without them the response is
+  `{"configured": false, "total_seconds": 0, "work_items": []}`.
+- **Freshness and cost:** results are cached for 60 s per project. Each refresh
+  makes 2 solidtime requests plus one per page of the project's tasks (pages
+  hold `PAGINATION_PER_PAGE_DEFAULT` rows; keep it at 500 on the solidtime
+  server, since solidtime's code default is 15). They count against the token's
+  limit of 200 requests per minute.
+- **When solidtime fails:** if solidtime is down, rate-limited or rejects the token, the response is
+  `502 {"code": "solidtime_unavailable"}`.
+
 ## Kara-specific code changes
 
 Changes previously applied as bind-mounted patches now live in source:

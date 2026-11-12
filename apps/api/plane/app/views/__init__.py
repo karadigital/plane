@@ -144,6 +144,8 @@ from .issue.label import LabelViewSet, BulkCreateIssueLabelsEndpoint
 
 from .issue.link import IssueLinkViewSet
 
+from .issue.solidtime import IssueSolidtimeTimeEntryEndpoint
+
 from .issue.relation import IssueRelationViewSet
 
 from .issue.reaction import IssueReactionViewSet

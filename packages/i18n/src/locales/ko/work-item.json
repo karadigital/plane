@@ -266,6 +266,27 @@
       "click_to_downvote": "클릭하여 비추천",
       "click_to_view_upvotes": "클릭하여 추천 목록 보기",
       "click_to_view_downvotes": "클릭하여 비추천 목록 보기"
+    },
+    "solidtime": {
+      "label": "기록된 시간",
+      "log_time": "시간 기록",
+      "modal_title": "시간 추적",
+      "date": "날짜",
+      "start_time": "시작 시간",
+      "end_time": "종료 시간",
+      "hours": "시간",
+      "minutes": "분",
+      "description": "설명",
+      "description_placeholder": "어떤 작업을 하셨습니까?",
+      "submit": "Time으로 보내기",
+      "success": "시간이 기록되었습니다",
+      "no_entries": "이 작업 항목에 기록된 시간이 아직 없습니다.",
+      "running": "진행 중",
+      "errors": {
+        "future": "시작 시간은 미래일 수 없습니다",
+        "duration": "기간은 1분에서 24시간 사이여야 합니다",
+        "generic": "시간을 기록하지 못했습니다. 다시 시도해 주십시오."
+      }
     }
   },
   "sub_work_item": {

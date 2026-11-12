@@ -266,6 +266,27 @@
       "click_to_downvote": "Clique para votar contra",
       "click_to_view_upvotes": "Clique para ver os votos a favor",
       "click_to_view_downvotes": "Clique para ver os votos contra"
+    },
+    "solidtime": {
+      "label": "Tempo registrado",
+      "log_time": "Registrar tempo",
+      "modal_title": "Controle de tempo",
+      "date": "Data",
+      "start_time": "Hora de início",
+      "end_time": "Hora de término",
+      "hours": "Horas",
+      "minutes": "Minutos",
+      "description": "Descrição",
+      "description_placeholder": "Em que você trabalhou?",
+      "submit": "Enviar para o Time",
+      "success": "Tempo registrado",
+      "no_entries": "Nenhum tempo registrado neste item de trabalho ainda.",
+      "running": "Em andamento",
+      "errors": {
+        "future": "A hora de início não pode estar no futuro",
+        "duration": "A duração deve estar entre 1 minuto e 24 horas",
+        "generic": "Não foi possível registrar o tempo. Tente novamente."
+      }
     }
   },
   "sub_work_item": {
