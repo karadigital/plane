@@ -226,6 +226,7 @@ from .notification.base import (
 )
 
 from .exporter.base import ExportIssuesEndpoint
+from .exporter.auto_report import AutoReportEndpoint
 
 
 from .webhook.base import (
