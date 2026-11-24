@@ -4,7 +4,7 @@
 
 from django.urls import path
 
-from plane.app.views import ExportIssuesEndpoint
+from plane.app.views import AutoReportEndpoint, ExportIssuesEndpoint
 
 
 urlpatterns = [
@@ -12,5 +12,10 @@ urlpatterns = [
         "workspaces/<str:slug>/export-issues/",
         ExportIssuesEndpoint.as_view(),
         name="export-issues",
+    ),
+    path(
+        "workspaces/<str:slug>/auto-report/",
+        AutoReportEndpoint.as_view(http_method_names=["get"]),
+        name="auto-report",
     ),
 ]
