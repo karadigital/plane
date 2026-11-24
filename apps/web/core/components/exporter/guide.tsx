@@ -11,6 +11,7 @@ import { mutate } from "swr";
 // constants
 import { EXPORT_SERVICES_LIST } from "@plane/constants";
 // local imports
+import { AutoReportForm } from "./auto-report/auto-report-form";
 import { ExportForm } from "./export-form";
 import { PrevExports } from "./prev-exports";
 
@@ -26,6 +27,7 @@ export const ExportGuide = observer(function ExportGuide() {
   return (
     <>
       <div className="flex size-full flex-col gap-y-13">
+        <AutoReportForm workspaceSlug={workspaceSlug} />
         <ExportForm
           workspaceSlug={workspaceSlug}
           provider={provider}
