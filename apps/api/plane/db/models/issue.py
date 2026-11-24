@@ -102,8 +102,8 @@ class IssueManager(SoftDeletionManager):
 
 
 class Issue(ChangeTrackerMixin, ProjectBaseModel):
-    # name/project_id/sequence_id/is_draft drive the solidtime task sync (KARA-220)
-    TRACKED_FIELDS = ["state_id", "name", "project_id", "sequence_id", "is_draft"]
+    # name/project_id/sequence_id/is_draft drive the solidtime task sync (KARA-220); start_date is for KARA-106
+    TRACKED_FIELDS = ["state_id", "name", "project_id", "sequence_id", "is_draft", "start_date"]
 
     PRIORITY_CHOICES = (
         ("urgent", "Urgent"),
@@ -181,6 +181,7 @@ class Issue(ChangeTrackerMixin, ProjectBaseModel):
     def save(self, *args, **kwargs):
         self._ensure_default_state()
         kwargs = self._sync_completed_at(kwargs)
+        kwargs = self._sync_start_date(kwargs)
 
         if self._state.adding:
             with transaction.atomic():
@@ -253,6 +254,22 @@ class Issue(ChangeTrackerMixin, ProjectBaseModel):
         update_fields = kwargs.get("update_fields")
         if update_fields is not None:
             kwargs["update_fields"] = list(set(update_fields) | {"completed_at"})
+        return kwargs
+
+    def _sync_start_date(self, kwargs):
+        """Set start_date to today when entering a started state with no start_date. Returns kwargs."""
+        if not self.state:
+            return kwargs
+        if not self._state.adding and (not self.has_changed("state_id") or self.has_changed("start_date")):
+            return kwargs
+        if self.state.group != StateGroup.STARTED.value or self.start_date:
+            return kwargs
+
+        self.start_date = timezone.localdate()
+
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = list(set(update_fields) | {"start_date"})
         return kwargs
 
 

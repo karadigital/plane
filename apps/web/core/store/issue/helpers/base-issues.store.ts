@@ -28,7 +28,7 @@ import type {
 } from "@plane/types";
 import { EIssueServiceType, EIssueLayoutTypes } from "@plane/types";
 // helpers
-import { convertToISODateString } from "@plane/utils";
+import { convertToISODateString, renderFormattedPayloadDate } from "@plane/utils";
 // plane web imports
 // services
 import { CycleService } from "@/services/cycle.service";
@@ -36,6 +36,7 @@ import { IssueArchiveService, IssueService } from "@/services/issue";
 import { ModuleService } from "@/services/module.service";
 //
 import type { IIssueRootStore } from "../root.store";
+import { getAutoStartDate } from "./auto-start-date";
 import {
   getDifference,
   getGroupIssueKeyActions,
@@ -561,6 +562,12 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
   ) {
     // Store Before state of the issue
     const issueBeforeUpdate = clone(this.rootIssueStore.issues.getIssueById(issueId));
+    const today = renderFormattedPayloadDate(new Date());
+    if (shouldSync && today) {
+      const stateGroup = data.state_id ? this.rootIssueStore.stateMap?.[data.state_id]?.group : undefined;
+      const startDate = getAutoStartDate(issueBeforeUpdate, data, stateGroup, today);
+      if (startDate) data = { ...data, start_date: startDate };
+    }
     try {
       // Update the Respective Stores
       this.rootIssueStore.issues.updateIssue(issueId, data);
